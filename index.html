@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
@@ -7,7 +7,1186 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
+  <style>
+:root {
+  --bg-dark: #070b19;
+  --glass-bg: rgba(8, 15, 34, 0.58);
+  --glass-border: rgba(0, 242, 254, 0.38);
+  --gold: #fbbf24;
+  --cyan: #00f2fe;
+  --crimson: #f43f5e;
+  --emerald: #10b981;
+  --text-main: #f8fafc;
+  --text-muted: #cbd5e1;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Cairo', sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+}
+
+#game-canvas-container {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+}
+
+/* Overlays for Nitro & Wrong Answer */
+.nitro-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  background: radial-gradient(circle at center, transparent 55%, rgba(0, 242, 254, 0.32) 100%);
+  box-shadow: inset 0 0 90px rgba(0, 242, 254, 0.5);
+}
+.nitro-overlay.active { opacity: 1; }
+
+.damage-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: radial-gradient(circle at center, transparent 55%, rgba(239, 68, 68, 0.4) 100%);
+}
+.damage-overlay.active { opacity: 1; }
+
+/* Top Official School Bar */
+.top-school-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 46px;
+  z-index: 25;
+  background: linear-gradient(90deg, rgba(8, 15, 34, 0.88), rgba(17, 32, 70, 0.88), rgba(8, 15, 34, 0.88));
+  border-bottom: 1.5px solid rgba(251, 191, 36, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  backdrop-filter: blur(8px);
+}
+
+.school-right, .school-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.school-title { color: #f8fafc; }
+.subject-title { color: var(--cyan); }
+.principal-title { color: #e2e8f0; margin-left: 6px; }
+.divider { color: rgba(255, 255, 255, 0.3); }
+
+.author-badge {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #090d16;
+  font-weight: 900;
+  font-size: 0.95rem;
+  padding: 2px 16px;
+  border-radius: 999px;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.7);
+  border: 1.5px solid #fef3c7;
+}
+
+.icon-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.icon-btn:hover {
+  background: rgba(0, 242, 254, 0.25);
+  border-color: var(--cyan);
+}
+.pause-top-btn {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: var(--gold);
+}
+.pause-top-btn.is-paused {
+  background: rgba(16, 185, 129, 0.35);
+  border-color: #10b981;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+}
+.pause-icon-giant {
+  font-size: 3.6rem;
+  margin: 4px 0;
+  filter: drop-shadow(0 0 18px rgba(0, 242, 254, 0.6));
+}
+.pause-card {
+  width: min(540px, 92vw);
+}
+
+/* HUD Layer */
+.hud-layer {
+  position: fixed;
+  inset: 46px 0 0 0;
+  z-index: 10;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.hud-layer.hud-minimized #question-cockpit,
+.hud-layer.hud-minimized #q-options-grid {
+  opacity: 0.08;
+  pointer-events: none;
+}
+.hidden {
+  display: none !important;
+}
+
+/* ==========================================================================
+   TOP HOLOGRAM QUESTION BANNER (Leaves Center & Bottom Track 100% Visible!)
+   ========================================================================== */
+.top-question-hud {
+  pointer-events: auto;
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(880px, 76vw);
+  background: var(--glass-bg);
+  border: 1.5px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 8px 16px 10px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.top-hud-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.meta-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.hud-driver-tag {
+  color: var(--gold);
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+.stage-pill {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(59, 130, 246, 0.35));
+  border: 1px solid #c084fc;
+  color: #f3e8ff;
+  font-weight: 900;
+  font-size: 0.76rem;
+  padding: 1px 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+}
+.position-pill {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(217, 119, 6, 0.3));
+  border: 1px solid var(--gold);
+  color: #fef08a;
+  font-weight: 900;
+  font-size: 0.78rem;
+  padding: 1px 10px;
+  border-radius: 999px;
+}
+.boss-question-glow {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.55) !important;
+}
+.hud-q-counter {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.76rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+.q-code-badge {
+  background: rgba(0, 242, 254, 0.18);
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+.q-outcome-badge {
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mini Track Progress inside Top Bar */
+.track-mini-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 210px;
+  min-width: 130px;
+}
+.hud-distance {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: var(--cyan);
+}
+.track-bar-outer {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+.track-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #00f2fe, #10b981, #fbbf24);
+  transition: width 0.4s ease;
+}
+.track-car-marker {
+  position: absolute;
+  top: 50%;
+  right: 0%;
+  transform: translate(50%, -50%) scaleX(-1);
+  font-size: 1rem;
+  transition: right 0.4s ease;
+}
+.track-finish-flag {
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.9rem;
+}
+
+.timer-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid var(--gold);
+  padding: 1px 10px;
+  border-radius: 999px;
+}
+.timer-seconds {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 0.86rem;
+  color: var(--gold);
+}
+.timer-container.danger {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #ef4444;
+  animation: pulseDanger 0.6s infinite alternate;
+}
+
+@keyframes pulseDanger {
+  from { transform: scale(1); }
+  to { transform: scale(1.06); }
+}
+
+.timer-progress-bar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.timer-progress-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #10b981, #fbbf24, #ef4444);
+  transition: width 0.25s linear;
+}
+
+.question-heading {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: #ffffff;
+  text-align: center;
+  line-height: 1.38;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
+}
+
+/* ==========================================================================
+   SIDE WING OPTIONS (2 Left, 2 Right — Center Track & Car 100% Open!)
+   ========================================================================== */
+.side-wings-options {
+  pointer-events: none;
+  position: absolute;
+  top: 122px;
+  left: 14px;
+  right: 14px;
+  display: grid;
+  grid-template-columns: minmax(230px, 310px) 1fr minmax(230px, 310px);
+  grid-template-rows: auto auto;
+  gap: 10px;
+  align-items: start;
+}
+
+/* Place Option 1 & 2 on the Right Wing, Option 3 & 4 on the Left Wing */
+.side-wings-options .option-btn:nth-child(1) { grid-column: 1; grid-row: 1; }
+.side-wings-options .option-btn:nth-child(2) { grid-column: 1; grid-row: 2; }
+.side-wings-options .option-btn:nth-child(3) { grid-column: 3; grid-row: 1; }
+.side-wings-options .option-btn:nth-child(4) { grid-column: 3; grid-row: 2; }
+
+.option-btn {
+  pointer-events: auto;
+  background: rgba(8, 16, 36, 0.56);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
+  padding: 8px 12px;
+  color: #f8fafc;
+  font-family: 'Cairo', sans-serif;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-align: right;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  backdrop-filter: blur(6px);
+  transition: all 0.18s ease;
+  line-height: 1.35;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+.option-btn:hover:not(:disabled),
+.option-btn.keyboard-focus:not(:disabled) {
+  background: rgba(0, 242, 254, 0.22);
+  border-color: var(--cyan);
+  transform: translateY(-2px);
+  box-shadow: 0 0 18px rgba(0, 242, 254, 0.35);
+}
+
+.option-key-badge {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(0, 242, 254, 0.22);
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 0.76rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.option-btn.correct {
+  background: rgba(16, 185, 129, 0.42) !important;
+  border-color: #10b981 !important;
+  color: #ecfdf5 !important;
+  box-shadow: 0 0 22px rgba(16, 185, 129, 0.6);
+}
+.option-btn.correct .option-key-badge {
+  background: #10b981;
+  color: #052e16;
+}
+
+.option-btn.wrong {
+  background: rgba(239, 68, 68, 0.42) !important;
+  border-color: #ef4444 !important;
+  color: #fef2f2 !important;
+}
+.option-btn.wrong .option-key-badge {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* Compact Feedback Banner inside Top HUD */
+.feedback-panel {
+  margin-top: 6px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(9, 16, 34, 0.85);
+  border: 1px solid rgba(0, 242, 254, 0.35);
+}
+.feedback-content-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.feedback-status-title {
+  font-weight: 900;
+  font-size: 0.85rem;
+}
+.feedback-speed-delta {
+  font-family: 'Orbitron', 'Cairo', sans-serif;
+  font-weight: 900;
+  font-size: 0.78rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+.feedback-explanation {
+  font-size: 0.78rem;
+  color: #e2e8f0;
+  flex: 1;
+  min-width: 220px;
+}
+.btn-next-compact {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  font-family: 'Cairo', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 900;
+  padding: 4px 14px;
+  border-radius: 8px;
+  border: 1px solid #a7f3d0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Bottom Right Compact Telemetry & Controls */
+.bottom-right-telemetry {
+  position: absolute;
+  bottom: 12px;
+  right: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.telemetry-stats-row {
+  display: flex;
+  gap: 8px;
+}
+.stat-pill {
+  background: var(--glass-bg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 4px 12px;
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gold-pill { border-bottom: 2.5px solid var(--gold); }
+.cyan-pill { border-bottom: 2.5px solid var(--cyan); }
+.crowd-pill { border-bottom: 2.5px solid var(--emerald); }
+
+.s-lbl {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.s-val {
+  font-family: 'Orbitron', 'Cairo', sans-serif;
+  font-size: 1rem;
+  font-weight: 900;
+  color: #fff;
+}
+.crowd-status-text {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #34d399;
+}
+
+.laptop-keys-strip {
+  background: rgba(8, 15, 34, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 3px 10px;
+  display: flex;
+  gap: 10px;
+  font-size: 0.7rem;
+  color: #cbd5e1;
+  backdrop-filter: blur(6px);
+}
+.laptop-keys-strip kbd {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.65rem;
+  color: var(--gold);
+}
+
+/* Bottom Left Compact Speedometer */
+.speedometer-widget {
+  position: absolute;
+  bottom: 12px;
+  left: 16px;
+  width: 145px;
+  height: 145px;
+  background: radial-gradient(circle, rgba(13, 23, 48, 0.78) 60%, rgba(5, 9, 20, 0.88) 100%);
+  border-radius: 50%;
+  border: 2px solid rgba(0, 242, 254, 0.4);
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+}
+.gauge-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(135deg);
+}
+.gauge-bg-ring {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 12;
+  stroke-dasharray: 430 580;
+  stroke-linecap: round;
+}
+.gauge-active-ring {
+  fill: none;
+  stroke-width: 12;
+  stroke-dasharray: 0 580;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.2s ease;
+}
+.gauge-center {
+  text-align: center;
+  z-index: 2;
+}
+.gear-indicator {
+  display: inline-block;
+  background: rgba(251, 191, 36, 0.2);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  font-size: 0.74rem;
+  padding: 0px 6px;
+  border-radius: 5px;
+}
+.speed-number {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.85rem;
+  font-weight: 900;
+  line-height: 1.05;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(0, 242, 254, 0.7);
+}
+.speed-unit {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.62rem;
+  color: var(--cyan);
+  letter-spacing: 1px;
+}
+.nitro-ready-tag {
+  font-size: 0.55rem;
+  font-weight: 900;
+  color: #10b981;
+}
+
+/* Modals (Semi-Transparent so you can see the 3D Car behind the Start Menu) */
+.modal-backdrop {
+  position: fixed;
+  inset: 46px 0 0 0;
+  z-index: 30;
+  background: rgba(4, 8, 20, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-card {
+  width: min(720px, 95vw);
+  max-height: calc(100vh - 75px);
+  overflow-y: auto;
+  background: linear-gradient(160deg, rgba(13, 23, 52, 0.9), rgba(7, 12, 28, 0.94));
+  border: 2px solid rgba(251, 191, 36, 0.55);
+  border-radius: 22px;
+  padding: 20px 26px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.85);
+  text-align: center;
+}
+
+.ribbon-credit {
+  display: inline-block;
+  background: linear-gradient(135deg, #fbbf24, #d97706);
+  color: #090d16;
+  font-weight: 900;
+  font-size: 0.95rem;
+  padding: 3px 20px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+}
+.school-sub-header {
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.main-game-title {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+}
+.title-3d {
+  font-size: 2rem;
+  font-weight: 900;
+  background: linear-gradient(90deg, #00f2fe, #ffffff, #fbbf24);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.title-sub {
+  font-size: 0.88rem;
+  color: var(--gold);
+}
+.game-intro-desc {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #cbd5e1;
+  margin-bottom: 12px;
+}
+.text-green { color: #34d399; }
+.text-red { color: #fb7185; }
+
+.driver-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  text-align: right;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 12px 16px;
+  border-radius: 14px;
+  margin-bottom: 12px;
+}
+.input-group label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--cyan);
+  margin-bottom: 4px;
+}
+.input-group input, .select-input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-family: 'Cairo', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.color-swatches {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  height: 36px;
+}
+.color-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.45);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.color-swatch.active {
+  transform: scale(1.22);
+  border-color: #fff;
+}
+
+.controls-preview-box {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.cp-item {
+  background: rgba(0, 242, 254, 0.08);
+  border: 1px solid rgba(0, 242, 254, 0.25);
+  border-radius: 10px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.75rem;
+}
+.cp-keys { color: var(--gold); font-weight: 900; }
+
+.modal-actions-row {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.btn-start-huge {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  font-family: 'Cairo', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 900;
+  padding: 8px 28px;
+  border-radius: 12px;
+  border: 2px solid #a7f3d0;
+  cursor: pointer;
+  box-shadow: 0 0 22px rgba(16, 185, 129, 0.6);
+}
+.btn-primary-glow {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  color: #fff;
+  font-family: 'Cairo', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 800;
+  padding: 6px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--cyan);
+  cursor: pointer;
+}
+.btn-secondary-outline {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--gold);
+  font-family: 'Cairo', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 800;
+  padding: 8px 20px;
+  border-radius: 12px;
+  border: 1.5px solid var(--gold);
+  cursor: pointer;
+}
+.btn-danger-ghost {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  font-family: 'Cairo', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  cursor: pointer;
+}
+
+/* Finish Card */
+.trophy-giant { font-size: 3.8rem; }
+.finish-title { font-size: 1.65rem; font-weight: 900; }
+.finish-subtitle { font-size: 1.1rem; font-weight: 800; color: var(--gold); margin-bottom: 14px; }
+.finish-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.f-stat-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+.f-label { font-size: 0.78rem; color: var(--text-muted); }
+.f-val { font-size: 1.25rem; font-weight: 900; }
+.gold-text { color: var(--gold); }
+.green-text { color: #34d399; }
+.cyan-text { color: var(--cyan); }
+
+/* Leaderboard Table */
+.table-wrapper {
+  max-height: 290px;
+  overflow-y: auto;
+  margin: 12px 0 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.leaderboard-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.leaderboard-table th, .leaderboard-table td {
+  padding: 8px 10px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.leaderboard-table th {
+  background: rgba(0, 242, 254, 0.18);
+  color: var(--cyan);
+  font-weight: 800;
+  position: sticky;
+  top: 0;
+}
+
+/* Persistent Floating Signature */
+.floating-signature {
+  position: fixed;
+  top: 54px;
+  left: 14px;
+  z-index: 15;
+  background: rgba(9, 14, 28, 0.82);
+  border: 1.5px solid var(--gold);
+  color: var(--gold);
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+.sig-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+/* ==========================================================================
+   8K 3D HOLOGRAM WATERMARK: "بالميثاق نبلغ الآفاق"
+   ========================================================================== */
+.hologram-8k-watermark {
+  position: fixed;
+  top: 52px;
+  right: 16px;
+  z-index: 16;
+  pointer-events: none;
+  perspective: 900px;
+  transform-style: preserve-3d;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 242, 254, 0.10) 0%,
+    rgba(16, 185, 129, 0.06) 45%,
+    rgba(251, 191, 36, 0.12) 100%
+  );
+  border: 1px solid rgba(0, 242, 254, 0.42);
+  box-shadow:
+    0 0 24px rgba(0, 242, 254, 0.25),
+    inset 0 0 18px rgba(0, 242, 254, 0.18);
+  backdrop-filter: blur(4px);
+  animation: holoFloat3D 5.5s ease-in-out infinite;
+  overflow: hidden;
+}
+
+.holo-rings-3d {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  transform-style: preserve-3d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.holo-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.8px dashed rgba(0, 242, 254, 0.85);
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.7);
+}
+.holo-ring.r1 {
+  animation: holoSpin3D_A 4s linear infinite;
+}
+.holo-ring.r2 {
+  inset: 4px;
+  border-style: solid;
+  border-color: rgba(251, 191, 36, 0.85);
+  animation: holoSpin3D_B 3s linear infinite reverse;
+}
+
+.holo-prism-body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform-style: preserve-3d;
+}
+.holo-crown-icon {
+  font-size: 1.15rem;
+  filter: drop-shadow(0 0 10px #00f2fe);
+}
+.holo-text-stack {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.holo-main-motto {
+  position: relative;
+  font-size: 0.96rem;
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  background: linear-gradient(90deg, #00f2fe 0%, #ffffff 35%, #fbbf24 70%, #00f2fe 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 10px rgba(0, 242, 254, 0.65));
+  animation: holoShimmer8K 3.5s linear infinite;
+}
+.holo-main-motto::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  left: 1px;
+  top: -1px;
+  color: rgba(0, 242, 254, 0.32);
+  -webkit-text-fill-color: rgba(0, 242, 254, 0.25);
+  transform: translateZ(-6px);
+  pointer-events: none;
+}
+.holo-sub-tag {
+  font-family: 'Orbitron', 'Cairo', sans-serif;
+  font-size: 0.56rem;
+  font-weight: 800;
+  color: rgba(224, 242, 254, 0.78);
+  letter-spacing: 1px;
+}
+
+.holo-scanline {
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0, 242, 254, 0.9), rgba(251, 191, 36, 0.9), transparent);
+  box-shadow: 0 0 10px #00f2fe;
+  animation: holoScanSweep 2.8s ease-in-out infinite;
+  opacity: 0.75;
+}
+
+@keyframes holoFloat3D {
+  0%, 100% {
+    transform: perspective(900px) rotateY(-8deg) rotateX(4deg) translateY(0px);
+  }
+  50% {
+    transform: perspective(900px) rotateY(8deg) rotateX(-4deg) translateY(-3px);
+  }
+}
+
+@keyframes holoSpin3D_A {
+  0% { transform: rotateX(55deg) rotateY(0deg) rotateZ(0deg); }
+  100% { transform: rotateX(55deg) rotateY(360deg) rotateZ(360deg); }
+}
+
+@keyframes holoSpin3D_B {
+  0% { transform: rotateY(55deg) rotateX(0deg) rotateZ(0deg); }
+  100% { transform: rotateY(55deg) rotateX(360deg) rotateZ(360deg); }
+}
+
+@keyframes holoShimmer8K {
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes holoScanSweep {
+  0% { top: -10%; opacity: 0; }
+  50% { opacity: 0.85; }
+  100% { top: 110%; opacity: 0; }
+}
+
+/* ==========================================================================
+   SECRET ENCRYPTED TEACHER ANALYTICS DASHBOARD STYLES
+   ========================================================================== */
+.secret-auth-card {
+  width: min(480px, 92vw);
+  border-color: #00f2fe;
+  box-shadow: 0 0 50px rgba(0, 242, 254, 0.35);
+}
+.secret-pin-box {
+  display: flex;
+  gap: 10px;
+  margin: 14px 0 6px;
+}
+.secret-pin-box input {
+  flex: 1;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1.5px solid var(--cyan);
+  color: #fff;
+  font-family: 'Orbitron', 'Cairo', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  padding: 8px 14px;
+  border-radius: 10px;
+  text-align: center;
+  letter-spacing: 2px;
+}
+.secret-error-msg {
+  color: #fb7185;
+  font-size: 0.82rem;
+  font-weight: 800;
+  margin-top: 6px;
+}
+
+.secret-dashboard-card {
+  width: min(1140px, 96vw);
+  max-height: calc(100vh - 65px);
+  padding: 18px 22px;
+  text-align: right;
+  border-color: #00f2fe;
+}
+.secret-dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.secret-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.analytics-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.kpi-box {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(0, 242, 254, 0.28);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kpi-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 700;
+}
+.kpi-val {
+  font-family: 'Orbitron', 'Cairo', sans-serif;
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+.kpi-sub {
+  font-size: 0.68rem;
+  color: #64748b;
+}
+
+.cloud-sync-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: rgba(0, 242, 254, 0.07);
+  border: 1px solid rgba(0, 242, 254, 0.25);
+  border-radius: 10px;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+}
+.cloud-status-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #34d399;
+  font-weight: 800;
+}
+.cloud-config-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  max-width: 520px;
+}
+.cloud-config-right input {
+  flex: 1;
+  background: rgba(9, 14, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-family: 'Cairo', sans-serif;
+  font-size: 0.76rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.analytics-table th, .analytics-table td {
+  font-size: 0.78rem;
+  padding: 7px 8px;
+}
+.badge-device {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.72rem;
+  background: rgba(56, 189, 248, 0.18);
+  color: #7dd3fc;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+.badge-loc {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.72rem;
+  background: rgba(168, 85, 247, 0.18);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.secret-dash-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .analytics-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .side-wings-options {
+    grid-template-columns: 1fr 1fr;
+    top: 132px;
+  }
+  .side-wings-options .option-btn:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .side-wings-options .option-btn:nth-child(2) { grid-column: 1; grid-row: 2; }
+  .side-wings-options .option-btn:nth-child(3) { grid-column: 2; grid-row: 1; }
+  .side-wings-options .option-btn:nth-child(4) { grid-column: 2; grid-row: 2; }
+}
+
+</style>
   <!-- Three.js High-Resolution 3D Engine -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -401,7 +1580,3057 @@
     </div>
   </div>
 
-  <script src="questions.js"></script>
-  <script src="game.js"></script>
+  <script>
+// بيانات الأسئلة الـ 23 المستخرجة بالكامل من ملف العلوم للصف العاشر العام
+// مدرسة المعارف حلقة ثالثة بنين | إعداد: أ.هشام غنوم | مديرة المدرسة: أ.نوال غريب
+
+window.QUIZ_QUESTIONS = [
+  {
+    id: 1,
+    code: "Q1 - ص 36",
+    learningOutcome: "يشرح توافق نقل الدم اعتماداً على نظامي (ABO) و (Rh)",
+    question: "شخص تمتلك خلايا دمه الحمراء المولدين ضد A و B معاً، ما هي فصيلة دمه؟",
+    options: [
+      "أ. A",
+      "ب. B",
+      "ج. AB",
+      "د. O"
+    ],
+    correct: 2,
+    explanation: "فصيلة الدم AB تمتلك كلا مولدي الضد A و B على سطح خلايا الدم الحمراء."
+  },
+  {
+    id: 2,
+    code: "Q1 - ص 36",
+    learningOutcome: "يشرح توافق نقل الدم اعتماداً على نظامي (ABO) و (Rh)",
+    question: "أيٌّ مما يلي يصف تصنيف فصائل الدم الأربعة الرئيسة ومكونات الدم؟",
+    options: [
+      "أ. تُصنف إلى A, B, AB, O بناءً على مولدات الضد، ويتكون الدم من البلازما، خلايا الدم الحمراء، خلايا الدم البيضاء، والصفائح الدموية.",
+      "ب. تُصنف بناءً على حجم الأوعية الدموية والشرايين فقط.",
+      "ج. تُصنف بناءً على وجود الأجسام المضادة في خلايا الدم البيضاء فقط.",
+      "د. تُصنف إلى Rh موجب و Rh سالب بدون وجود نظام ABO."
+    ],
+    correct: 0,
+    explanation: "تُصنف الفصائل الأربع (A, B, AB, O) حسب مولدات الضد، ويتكون الدم من البلازما، خلايا الدم الحمراء، البيضاء، والصفائح الدموية."
+  },
+  {
+    id: 3,
+    code: "Q1 - ص 36 (تقويم الوحدة ص 51 س13)",
+    learningOutcome: "يشرح توافق نقل الدم اعتماداً على نظامي (ABO) و (Rh)",
+    question: "استنتج أي فصيلة دم من الفصائل (A أو B أو AB أو O) تُعتبر الأكثر قيمةً للعاملين الطبيين في موقف طارئ للغاية لنقل الدم، ولماذا؟",
+    options: [
+      "أ. الفصيلة AB؛ لأنها تحتوي على مولدي الضد A و B معاً",
+      "ب. الفصيلة A؛ لأنها الأكثر شيوعاً بين جميع المرضى",
+      "ج. الفصيلة O (وخاصة O سالب)؛ لأن خلاياها لا تحمل مولدات الضد A ولا B ولا Rh فلا تسبب تكتّلاً لدى المستقبِل",
+      "د. الفصيلة B؛ لأنها تخلو من الأجسام المضادة في البلازما"
+    ],
+    correct: 2,
+    explanation: "في الحالات الطارئة جداً قبل التمكن من فحص فصيلة دم المصاب، تُعد الفصيلة (O سالب) الأكثر قيمة لأن أغشية خلايا الدم الحمراء فيها لا تحمل مولدات الضد A ولا B ولا العامل الرايزيسي Rh، وبالتالي لن تهاجمها الأجسام المضادة الموجودة في بلازما دم المريض."
+  },
+  {
+    id: 4,
+    code: "Q4 - ص 35",
+    learningOutcome: "يحدد المكونات الرئيسة للدم ووظيفة كل منها",
+    question: "ما هي المكونات الأربعة الأساسية التي يتكّون منها الدم؟",
+    options: [
+      "أ. البلازما، خلايا الدم الحمراء، كريات الدم البيضاء، والصفائح الدموية",
+      "ب. الماء، الهيموجلوبين، الجلوكوز، والألياف",
+      "ج. الشرايين، الأوردة، الشعيرات الدموية، والصمامات",
+      "د. الفايبرين، البروتينات، الهرمونات، والأنزيمات"
+    ],
+    correct: 0,
+    explanation: "يتكون الدم من 4 مكونات رئيسة: البلازما، خلايا الدم الحمراء، خلايا الدم البيضاء، والصفائح الدموية."
+  },
+  {
+    id: 5,
+    code: "Q4 - ص 35 (تقويم الوحدة ص 51 س9 و س2)",
+    learningOutcome: "يحدد المكونات الرئيسة للدم ووظيفة كل منها",
+    question: "عندما يُجرح وعاء دموي صغير في يدك، أي مما يلي يلعب دوراً دفاعياً فاعلاً ضد الأمراض المحتملة؟",
+    options: [
+      "أ. البلازما",
+      "ب. الصفائح الدموية",
+      "ج. خلايا الدم الحمراء",
+      "د. كريات الدم البيضاء"
+    ],
+    correct: 3,
+    explanation: "تكافح كريات الدم البيضاء الأمراض في الجسم؛ إذ تتعرف على الكائنات الحية المسببة للأمراض مثل البكتيريا، وتنتج بعضها مواد كيميائية لمكافحة الغزاة بينما يحيط البعض الآخر بالغزاة ويقتلهم."
+  },
+  {
+    id: 6,
+    code: "Q5 - ص 36",
+    learningOutcome: "يصنف الدم وفق نظامي فصائل الدم (ABO) و (Rh)",
+    question: "ما هي فصيلة الدم التي تُعد «مستقبِلاً عاماً» حيث يمكنها استقبال الدم من جميع الفصائل (A, B, AB, O)؟",
+    options: [
+      "أ. فصيلة O",
+      "ب. فصيلة A",
+      "ج. فصيلة B",
+      "د. فصيلة AB"
+    ],
+    correct: 3,
+    explanation: "فصيلة AB هي المستقبل العام لعدم وجود أجسام مضادة A أو B في البلازما لديها."
+  },
+  {
+    id: 7,
+    code: "Q5 - ص 36",
+    learningOutcome: "يصنف الدم وفق نظامي فصائل الدم (ABO) و (Rh)",
+    question: "فصيلة الدم التي توصف بأنها «معطي عام» وتستطيع التبرع بالدم لجميع الفصائل (A أو B أو AB أو O) هي:",
+    options: [
+      "أ. فصيلة A",
+      "ب. فصيلة O",
+      "ج. فصيلة AB",
+      "د. فصيلة B"
+    ],
+    correct: 1,
+    explanation: "فصيلة O هي المعطي العام لخلو خلاياها الحمراء من مولدات الضد A و B."
+  },
+  {
+    id: 8,
+    code: "Q6 - ص 34",
+    learningOutcome: "يتتبع مسار الدم عبر القلب والرئتين وأجزاء الجسم المختلفة",
+    question: "أي جزء من القلب يتولى ضخ الدم غير المؤكسج إلى الرئتين؟",
+    options: [
+      "أ. الأذين الأيسر",
+      "ب. الجانب الأيمن من القلب",
+      "ج. البطين الأيسر",
+      "د. الشريان الأورطي"
+    ],
+    correct: 1,
+    explanation: "يتولى الجانب الأيمن من القلب (البطين الأيمن) ضخ الدم غير المؤكسج عبر الشريان الرئوي إلى الرئتين."
+  },
+  {
+    id: 9,
+    code: "Q6 - ص 34",
+    learningOutcome: "يتتبع مسار الدم عبر القلب والرئتين وأجزاء الجسم المختلفة",
+    question: "ما اسم أكبر شريان في الجسم يضخ البطين الأيسر الدم المؤكسج عبره ليتفرع إلى جميع أنحاء الجسم؟",
+    options: [
+      "أ. الشريان الرئوي",
+      "ب. الوريد الأجوف العلوي",
+      "ج. الوريد الرئوي",
+      "د. الشريان الأورطي"
+    ],
+    correct: 3,
+    explanation: "الشريان الأورطي (الأبهر) هو أكبر شريان في الجسم ويخرج من البطين الأيسر حاملاً الدم المؤكسج."
+  },
+  {
+    id: 10,
+    code: "Q7 - ص 32",
+    learningOutcome: "يميز بين الشرايين والأوردة والشعيرات الدموية من حيث التركيب والوظيفة",
+    question: "كيف تتميز جدران الأوردة مقارنةً بجدران الشرايين؟",
+    options: [
+      "أ. جدران الأوردة أكثر رقة من جدران الشرايين",
+      "ب. جدران الأوردة أسمك بكثير وتحتوي على عضلات ضخمة",
+      "ج. جدران الأوردة والشرايين متساوية تماماً في السمك",
+      "د. جدران الأوردة لا تحتوي على نسيج ضام بينما الشرايين تحتوي عليه"
+    ],
+    correct: 0,
+    explanation: "تتميز الأوردة بأن الطبقة العضلية الوسطى في جدرانها أكثر رقة وأقل سمكاً من جدران الشرايين."
+  },
+  {
+    id: 11,
+    code: "Q7 - ص 32",
+    learningOutcome: "يميز بين الشرايين والأوردة والشعيرات الدموية من حيث التركيب والوظيفة",
+    question: "ما هي الوظيفة الأساسية للقطع النسيجية التي تُسمى «الصمامات» والموجودة داخل الأوردة؟",
+    options: [
+      "أ. زيادة سرعة تدفق الدم باتجاه الشرايين",
+      "ب. تصفية الدم من الفضلات والسموم",
+      "ج. منع الدم من الارتداد إلى الخلف",
+      "د. إفراز بروتين الفايبرين لتشكيل التخثرات"
+    ],
+    correct: 2,
+    explanation: "تعمل الصمامات داخل الأوردة كبوابات أحادية الاتجاه تمنع ارتداد الدم إلى الخلف."
+  },
+  {
+    id: 12,
+    code: "Q7 - ص 32",
+    learningOutcome: "يميز بين الشرايين والأوردة والشعيرات الدموية من حيث التركيب والوظيفة",
+    question: "أين يقع القلب في جسم الإنسان، وما هو وصفه العضلي العام؟",
+    options: [
+      "أ. في منتصف الصدر بحجم قبضة اليد وهو عضو عضلي",
+      "ب. في الجهة اليمنى من الصدر ويتكون من أنسجة دهنية بحتة",
+      "ج. في أسفل البطن وهو عضو غير عضلي",
+      "د. خلف الرئتين مباشرة ويتكون من غضاريف صلبة"
+    ],
+    correct: 0,
+    explanation: "يقع القلب في منتصف الصدر تقريباً وهو عضو عضلي أجوف بحجم قبضة اليد."
+  },
+  {
+    id: 13,
+    code: "Q7 - ص 32",
+    learningOutcome: "يميز بين الشرايين والأوردة والشعيرات الدموية من حيث التركيب والوظيفة",
+    question: "كيف تتوزع حجرات القلب الأربعة من حيث الموقع؟",
+    options: [
+      "أ. الحجرتان العلويتان هما البطينان، والسفليتان هما الأذينان",
+      "ب. الحجرتان العلويتان هما الأذينان (الأيمن والأيسر)، وتحتهما البطينان (الأيمن والأيسر)",
+      "ج. الأذينان يقعان في الأسفل والبطينان في الجانبين",
+      "د. توجد حجرة واحدة رئيسية تقسم لأربعة أقسام متساوية بلا صمامات"
+    ],
+    correct: 1,
+    explanation: "يتكون القلب من أربع حجرات: الأذينان (الأيمن والأيسر) في الأعلى، والبطينان (الأيمن والأيسر) في الأسفل."
+  },
+  {
+    id: 14,
+    code: "Q8 - ص 46",
+    learningOutcome: "يتحقق من الاضطرابات الثلاثة في الجهاز البولي، لتشمل الالتهابات والتهاب الكلية وحصى الكلى",
+    question: "ما الذي تتكون منه الحصوات الكلوية عادةً؟",
+    options: [
+      "أ. كتل بروتينية متراكمة في الكبات",
+      "ب. ترسبات صلبة متبلورة مثل مركبات الكالسيوم",
+      "ج. أكياس مملوءة بالسوائل داخل أنسجة الكلية",
+      "د. تخثرات من خلايا الدم البيضاء في المثانة البولية"
+    ],
+    correct: 1,
+    explanation: "تتكون حصى الكلى من ترسبات صلبة متبلورة من المعادن والأملاح مثل مركبات الكالسيوم."
+  },
+  {
+    id: 15,
+    code: "Q10 - ص 44، 45",
+    learningOutcome: "يشرح كيف تقوم الكلى بتنظيف الدم من خلال الترشيح وإعادة الامتصاص وإفراز البول",
+    question: "كم تبلغ كمية السائل أو الدم التي تفرزها أو تنقيها الكليتان يومياً مقارنة بإنتاج البول لدى البالغين؟",
+    options: [
+      "أ. تنقي حوالي 180 L من الدم وتنتج حوالي 1.5 L فقط من البول",
+      "ب. تنقي حوالي 50 L وتنتج حوالي 10 L من البول",
+      "ج. تنقي 10 L من الدم وتنتج 180 L من البول",
+      "د. تنقي 1.5 L من الدم وتنتج 1.5 L من البول"
+    ],
+    correct: 0,
+    explanation: "ترشح الكليتان حوالي 180 لتراً يومياً، وبفضل إعادة الامتصاص لا يُطرح سوى 1.5 لتر من البول."
+  },
+  {
+    id: 16,
+    code: "Q11 - ص 43",
+    learningOutcome: "يحلل كيفية محافظة الكلى على التوازن لتشمل الأس الهيدروجيني وتوازن الماء",
+    question: "كيف تحافظ الكليتان على الاتزان الداخلي للجسم؟",
+    options: [
+      "أ. عبر تنظيم ضربات القلب والضغط الشرياني فقط",
+      "ب. عبر إزالة الفضلات والفائض من الماء والحفاظ على الرقم الهيدروجيني (pH) للدم",
+      "ج. عبر زيادة نسبة امتصاص الأكسجين في الرئتين",
+      "د. عبر إفراز العصارات الهضمية في الأمعاء"
+    ],
+    correct: 1,
+    explanation: "تحافظ الكليتان على الاتزان الداخلي بإزالة الفضلات والماء الزائد وتنظيم درجة حموضة الدم (pH)."
+  },
+  {
+    id: 17,
+    code: "Q11 - ص 43",
+    learningOutcome: "يحلل كيفية محافظة الكلى على التوازن لتشمل الأس الهيدروجيني وتوازن الماء",
+    question: "ما هو العضو الإخراجي الأكبر والرئيسي في جسم الإنسان؟",
+    options: [
+      "أ. الرئتان",
+      "ب. الجلد",
+      "ج. الكليتان",
+      "د. المثانة البولية"
+    ],
+    correct: 2,
+    explanation: "الكليتان هما العضو الإخراجي الرئيسي في جسم الإنسان."
+  },
+  {
+    id: 18,
+    code: "Q11 - ص 43 (وتقويم ص 52 س29)",
+    learningOutcome: "يحلل كيفية محافظة الكلى على التوازن لتشمل الأس الهيدروجيني وتوازن الماء",
+    question: "ما الوظائف الأساسية التي تؤديها الكليتان للحفاظ على الاتزان الداخلي للجسم كما ورد في صفحة 43، وأي عملية في الكلية تحافظ على بقاء الماء اللازم في الجسم؟",
+    options: [
+      "أ. إزالة الفضلات والسموم وفائض الماء والأملاح وتنظيم الرقم الهيدروجيني (pH) للدم؛ وتحافظ الكلية على الماء عن طريق عملية «إعادة الامتصاص»",
+      "ب. إنتاج الأكسجين وتخزين الكالسيوم؛ وتحافظ على الماء عن طريق عملية «الزفير»",
+      "ج. إفراز العرق عبر المسام؛ وتحافظ على الماء عن طريق «التصفية» فقط",
+      "د. ضخ الدم إلى الرئتين؛ وتحافظ على الماء عن طريق «حركات التنفس»"
+    ],
+    correct: 0,
+    explanation: "تعمل الكليتان كأكبر عضو إخراجي يحافظ على الاتزان الداخلي عبر تخليص الدم من الفضلات (اليوريا) وتنظيم السوائل والأملاح وضبط pH الدم؛ وتستعيد الماء المفيد عبر «إعادة الامتصاص» في الأنيبيبات الكلوية."
+  },
+  {
+    id: 19,
+    code: "Q12 - ص 45",
+    learningOutcome: "يحلل كيفية محافظة الكلى على التوازن لتشمل الأس الهيدروجيني وتوازن الماء",
+    question: "كيف يساهم الجلد في وظائف الجهاز الإخراجي؟",
+    options: [
+      "أ. عبر تنقية الدم وتحليل الفضلات تحت ضغط عالٍ",
+      "ب. عبر إعادة امتصاص الجلوكوز في الأوعية الدموية",
+      "ج. عبر تحويل الأمونيا إلى يوريا",
+      "د. عبر إخراج الماء والأملاح أساساً في العرق"
+    ],
+    correct: 3,
+    explanation: "يساهم الجلد في الإخراج عن طريق إفراز الماء والأملاح المعدنية الزائدة في صورة عرق."
+  },
+  {
+    id: 20,
+    code: "Q14 - ص 15",
+    learningOutcome: "يقارن ويقابل بين الأنسجة العضلية الثلاثة",
+    question: "أيٌّ من أنواع العضلات التالية يظهر بمظهر مغزلي الشكل وغير مخطط، ويحتوي على نواة واحدة لكل خلية؟",
+    options: [
+      "أ. العضلة الملساء",
+      "ب. العضلة الهيكلية",
+      "ج. العضلة القلبية",
+      "د. العضلة الإرادية"
+    ],
+    correct: 0,
+    explanation: "العضلة الملساء غير مخططة ومغزلية الشكل، وتحتوي كل خلية فيها على نواة واحدة."
+  },
+  {
+    id: 21,
+    code: "Q16 - ص 15",
+    learningOutcome: "يصف التركيب والأعضاء الرئيسة في الجهاز العضلي",
+    question: "ما هي الخصائص الرئيسية للعضلة القلبية؟",
+    options: [
+      "أ. هي عضلة إرادية تتواجد في الهيكل العظمي وتفتقر إلى النواة",
+      "ب. هي عضلة لا إرادية توجد في القلب فقط، وتترتب خلاياها على شكل شبكة لتسمح بالانقباض بشكل فعال ومنتظم",
+      "ج. هي عضلة مغزلية الشكل لا تحتوي على أي تخطيطات مجهرية وتعمل بشكل فردي",
+      "د. هي عضلة تفقد خلاياها النواة تماماً بعد الولادة"
+    ],
+    correct: 1,
+    explanation: "العضلة القلبية عضلة لا إرادية مخططة توجد في القلب فقط وتترتب خلاياها على شكل شبكة مترابطة."
+  },
+  {
+    id: 22,
+    code: "Q21 - ص 4، 5، 7 (سؤال مقالي)",
+    learningOutcome: "يشرح الوظائف الرئيسة للجهاز الغشائي ويحدد أنواع الأنسجة الأربعة فيه",
+    question: "مِمَّ يتكون الجهاز الغشائي (الجلد) أساساً؟ اذكر أنواع الأنسجة الأربعة التي يتكون منها الجلد ووضّح وظيفة كل منها بإيجاز.",
+    options: [
+      "أ. يُعد الجلد عضواً أساسياً يغطي الجسم ويحميه، ويتكون من: 1. النسيج الطلائي (يغطي الأسطح) | 2. النسيج الضام (الدعم والحماية) | 3. النسيج العضلي (تحريك الجسم) | 4. النسيج العصبي (الاتصالات والإحساس).",
+      "ب. إجابة غير مكتملة تقتصر على ذكر المصطلح دون تفسير الآلية العلمية أو الوظيفة الحيوية",
+      "ج. خلط بين التراكيب التشريحية والوظائف الفسيولوجية للأجهزة الحيوية",
+      "د. إغفال العلاقة بين التركيب النسيجي والاتزان الداخلي للجسم"
+    ],
+    correct: 0,
+    explanation: "يُعد الجلد عضواً أساسياً يغطي الجسم ويحميه، ويتكون من الأنسجة الأربعة: الطلائي (يغطي الأسطح)، الضام (يوفر الدعم والحماية)، العضلي (يساعد في الحركة)، والعصبي (شبكة الاتصالات والإحساس)."
+  },
+  {
+    id: 23,
+    code: "Q24 - ص 40، 42 (سؤال مقالي)",
+    learningOutcome: "يصف آلية الشهيق والزفير والاضطرابات التنفسية الشائعة",
+    question: "اشرح ما يحدث للحجاب الحاجز وتجويف الصدر أثناء عملية الزفير، وكيف يؤدي ذلك إلى خروج الهواء من الرئتين؟",
+    options: [
+      "أ. 1. ينبسط الحجاب الحاجز أثناء الزفير ويعود لوضع الاسترخاء متجهاً للأعلى | 2. يقلل هذا الانبساط من حجم تجويف الصدر | 3. يتدفق الهواء من الضغط الأعلى في الرئتين إلى الخارج.",
+      "ب. إجابة غير مكتملة تقتصر على ذكر المصطلح دون تفسير الآلية العلمية أو الوظيفة الحيوية",
+      "ج. خلط بين التراكيب التشريحية والوظائف الفسيولوجية للأجهزة الحيوية",
+      "د. إغفال العلاقة بين التركيب النسيجي والاتزان الداخلي للجسم"
+    ],
+    correct: 0,
+    explanation: "ينبسط الحجاب الحاجز أثناء الزفير متجهاً إلى الأعلى، مما يقلل حجم تجويف الصدر، فيزداد الضغط داخل الرئتين ويتدفق الهواء إلى الخارج."
+  }
+];
+
+</script>
+  <script>
+// ============================================================================
+// بطولة سباق العلوم ثلاثية الأبعاد (GRAND PRIX 3D)
+// مدرسة المعارف حلقة ثالثة بنين | العلوم للصف العاشر عام
+// إعداد: أ.هشام غنوم | مديرة المدرسة: أ.نوال غريب
+// ============================================================================
+
+(() => {
+  'use strict';
+
+  // --- Web Audio Synthesizer (Engine Roar, Nitro Whoosh, Crowd Cheer, Horns) ---
+  class RaceAudioEngine {
+    constructor() {
+      this.ctx = null;
+      this.muted = false;
+      this.engineOsc = null;
+      this.engineGain = null;
+      this.isRunning = false;
+    }
+
+    init() {
+      if (this.ctx) return;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      this.ctx = new AudioCtx();
+
+      // Continuous subtle engine hum
+      this.engineOsc = this.ctx.createOscillator();
+      this.engineGain = this.ctx.createGain();
+      this.engineOsc.type = 'sawtooth';
+      this.engineOsc.frequency.value = 55;
+      this.engineGain.gain.value = 0.018;
+
+      // Lowpass filter for realistic muffled V8 engine tone
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 240;
+
+      this.engineOsc.connect(filter);
+      filter.connect(this.engineGain);
+      this.engineGain.connect(this.ctx.destination);
+      this.engineOsc.start();
+      this.isRunning = true;
+    }
+
+    updateEnginePitch(speedKmh) {
+      if (!this.ctx || !this.isRunning || this.muted) return;
+      const targetFreq = 48 + (speedKmh / 360) * 145;
+      this.engineOsc.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 0.08);
+      this.engineGain.gain.setTargetAtTime(this.muted ? 0 : 0.022, this.ctx.currentTime, 0.1);
+    }
+
+    toggleMute() {
+      this.muted = !this.muted;
+      if (this.engineGain && this.ctx) {
+        this.engineGain.gain.setTargetAtTime(this.muted ? 0 : 0.02, this.ctx.currentTime, 0.05);
+      }
+      return this.muted;
+    }
+
+    playNitroAndCheer() {
+      if (this.muted) return;
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+
+      // 1. Stadium Air Horn Fanfare (Dual-tone realistic sports stadium horn)
+      [349.23, 440.0, 523.25].forEach((freq, idx) => {
+        const horn = this.ctx.createOscillator();
+        const hornGain = this.ctx.createGain();
+        horn.type = 'sawtooth';
+        horn.frequency.setValueAtTime(freq, now + idx * 0.08);
+        hornGain.gain.setValueAtTime(0.08, now + idx * 0.08);
+        hornGain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.55);
+        horn.connect(hornGain);
+        hornGain.connect(this.ctx.destination);
+        horn.start(now + idx * 0.08);
+        horn.stop(now + idx * 0.08 + 0.56);
+      });
+
+      // 2. Multi-Layered Human Crowd Roar ("WOOOAH / YEAAAH" Formant-Filtered Synthesis)
+      const duration = 2.6;
+      const bufferSize = Math.floor(this.ctx.sampleRate * duration);
+      const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+      }
+
+      // Layer A: Vocal Formant Roar (550Hz -> 950Hz pitch swell like a cheering stadium)
+      const roarSource = this.ctx.createBufferSource();
+      roarSource.buffer = noiseBuffer;
+      const formant1 = this.ctx.createBiquadFilter();
+      formant1.type = 'bandpass';
+      formant1.frequency.setValueAtTime(520, now);
+      formant1.frequency.linearRampToValueAtTime(920, now + 0.45);
+      formant1.frequency.linearRampToValueAtTime(680, now + duration);
+      formant1.Q.setValueAtTime(2.4, now);
+
+      const roarGain = this.ctx.createGain();
+      roarGain.gain.setValueAtTime(0.01, now);
+      roarGain.gain.linearRampToValueAtTime(0.24, now + 0.22);
+      roarGain.gain.setValueAtTime(0.22, now + 1.1);
+      roarGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      roarSource.connect(formant1);
+      formant1.connect(roarGain);
+      roarGain.connect(this.ctx.destination);
+      roarSource.start(now);
+
+      // Layer B: Rapid Stadium Applause & Clapping Bursts
+      for (let c = 0; c < 28; c++) {
+        const clapTime = now + 0.05 + c * 0.075 + (Math.random() * 0.03);
+        const clapSrc = this.ctx.createBufferSource();
+        clapSrc.buffer = noiseBuffer;
+
+        const clapFilter = this.ctx.createBiquadFilter();
+        clapFilter.type = 'bandpass';
+        clapFilter.frequency.setValueAtTime(1400 + Math.random() * 800, clapTime);
+        clapFilter.Q.setValueAtTime(1.5, clapTime);
+
+        const clapGain = this.ctx.createGain();
+        clapGain.gain.setValueAtTime(0.09, clapTime);
+        clapGain.gain.exponentialRampToValueAtTime(0.001, clapTime + 0.055);
+
+        clapSrc.connect(clapFilter);
+        clapFilter.connect(clapGain);
+        clapGain.connect(this.ctx.destination);
+        clapSrc.start(clapTime, Math.random() * 0.5, 0.06);
+      }
+
+      // 3. Enthusiastic Arabic Voice Commentator Cheer (Web Speech Synthesis)
+      if ('speechSynthesis' in window) {
+        try {
+          window.speechSynthesis.cancel();
+          const cheers = [
+            'إجابة صحيحة! الجمهور يهتف لك!',
+            'رائع يا بطل! انطلق بأقصى سرعة!',
+            'أحسنت! تيربو نيترو والجمهور يحتفل!',
+            'إجابة ممتازة! تقدم نحو الصدارة!'
+          ];
+          const utter = new SpeechSynthesisUtterance(cheers[Math.floor(Math.random() * cheers.length)]);
+          utter.lang = 'ar-AE';
+          utter.rate = 1.18;
+          utter.pitch = 1.15;
+          utter.volume = 0.9;
+          window.speechSynthesis.speak(utter);
+        } catch (e) {
+          // Ignore speech synthesis errors on restricted browsers
+        }
+      }
+    }
+
+    playBrakeBuzz() {
+      if (this.muted) return;
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(170, now);
+      osc.frequency.linearRampToValueAtTime(85, now + 0.35);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    }
+  }
+
+  const audio = new RaceAudioEngine();
+
+  // --- Game State ---
+  const STATE = {
+    driverName: 'بطل العلوم',
+    carColor: '#ff1e42',
+    carModel: 'f1',    // 'f1' (Formula 1 Grand Prix) or 'gt3' (GT3 Supercar)
+    questions: [],
+    currentQIndex: 0,
+    score: 0,
+    streak: 0,
+    correctCount: 0,
+    speed: 0,          // Current speed km/h
+    targetSpeed: 120,  // Cruise speed target
+    topSpeed: 120,
+    distanceProgress: 0, // 0 to 100%
+    laneX: 0,          // -4.2 (left), 0 (center), +4.2 (right)
+    currentCarX: 0,
+    keyboardFocusIndex: 0,
+    questionAnswered: false,
+    raceActive: false,
+    isPaused: false,
+    timePerQuestion: 25,
+    timeLeft: 25,
+    timerInterval: null,
+    celebrationTimer: 0, // > 0 means crowd jumps & fireworks explode
+    nitroTimer: 0,
+    cameraMode: 0      // 0: Close Hero Chase Cam, 1: Far Chase Cam, 2: Hood Cam
+  };
+
+  // --- Three.js Scene Globals ---
+  let scene, camera, renderer;
+  let ambientLight, dirLight, stadiumCyanLight;
+  let carGroup, carBodyMaterial, wheels = [], nitroFlames = [];
+  let trackSegments = [];
+  // Articulated 3D Human Spectators (Torso, Head, Left Arm, Right Arm, Cheering Flags, Camera Flashes)
+  let crowdParts = null;
+  let crowdData = [];
+  let cheerPopups = [];
+  let fireworks = [];
+  let finishArchGroup;
+
+  // Dynamic Anti-Boredom Systems: Rival AI Cars, Boost Rings, Stage Biomes & Track Curvature
+  let rivalCars = [];
+  let boostRings = [];
+  let neonArches = [];
+  let skyHologramGroup = null;
+  let skyHoloRing1 = null;
+  let skyHoloRing2 = null;
+  let trackCurvePhase = 0;
+  let currentCurveAmount = 0;
+  let targetCurveAmount = 0;
+  let currentStageIndex = -1;
+  let racePosition = 12;
+
+  const STAGES = [
+    {
+      name: '🌙 المرحلة 1: حلبة الاستاد الليلي',
+      skyColor: 0x060b19,
+      fogColor: 0x060b19,
+      turfColor: 0x064e3b,
+      ambientColor: 0xdbeafe,
+      dirColor: 0xfffbeb,
+      neonColor: 0x00f2fe,
+      showNeonTunnel: false
+    },
+    {
+      name: '🌅 المرحلة 2: حلبة الغروب الذهبي',
+      skyColor: 0x2e1025,
+      fogColor: 0x3b152a,
+      turfColor: 0x78350f,
+      ambientColor: 0xfed7aa,
+      dirColor: 0xf97316,
+      neonColor: 0xfbbf24,
+      showNeonTunnel: false
+    },
+    {
+      name: '⚡ المرحلة 3: نفق النيون المستقبلي',
+      skyColor: 0x090418,
+      fogColor: 0x0f0524,
+      turfColor: 0x1e1b4b,
+      ambientColor: 0xe9d5ff,
+      dirColor: 0xc084fc,
+      neonColor: 0xd946ef,
+      showNeonTunnel: true
+    },
+    {
+      name: '⛈️ المرحلة 4: عاصفة النهائي الكبرى',
+      skyColor: 0x04131c,
+      fogColor: 0x061c29,
+      turfColor: 0x0f172a,
+      ambientColor: 0xbae6fd,
+      dirColor: 0x38bdf8,
+      neonColor: 0x10b981,
+      showNeonTunnel: true
+    }
+  ];
+  let turfMaterials = [];
+
+  const SEGMENT_LENGTH = 40;
+  const NUM_SEGMENTS = 14;
+  const CROWD_COUNT_PER_SIDE = 360; // 720 full articulated 3D human spectators close to track!
+
+  // --- Create Procedural High-Res Textures ---
+  function createCheckerTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    const cols = 16, rows = 4;
+    const w = canvas.width / cols, h = canvas.height / rows;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        ctx.fillStyle = (r + c) % 2 === 0 ? '#ffffff' : '#111827';
+        ctx.fillRect(c * w, r * h, w, h);
+      }
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }
+
+  function createBannerTexture(text, subText, bgColor = '#0f172a', accentColor = '#fbbf24') {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    // Gradient background
+    const grad = ctx.createLinearGradient(0, 0, 1024, 0);
+    grad.addColorStop(0, '#090d16');
+    grad.addColorStop(0.5, bgColor);
+    grad.addColorStop(1, '#090d16');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 1024, 256);
+
+    // Border frame
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 10;
+    ctx.strokeRect(8, 8, 1008, 240);
+
+    // Main Arabic Text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 58px Cairo, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, 512, 105);
+
+    // Subtext
+    ctx.fillStyle = accentColor;
+    ctx.font = '800 40px Cairo, sans-serif';
+    ctx.fillText(subText, 512, 185);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.anisotropy = 8;
+    return tex;
+  }
+
+  function createAsphaltTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#1e2430';
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Subtle asphalt grain
+    for (let i = 0; i < 4500; i++) {
+      const v = 25 + Math.floor(Math.random() * 25);
+      ctx.fillStyle = `rgb(${v},${v + 3},${v + 8})`;
+      ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+    }
+
+    // Side solid racing lines
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(18, 0, 10, 512);
+    ctx.fillRect(484, 0, 10, 512);
+
+    // Dashed lane dividers
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.fillRect(170, 40, 8, 180);
+    ctx.fillRect(170, 300, 8, 180);
+    ctx.fillRect(334, 40, 8, 180);
+    ctx.fillRect(334, 300, 8, 180);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(1, 2);
+    return tex;
+  }
+
+  // --- Initialize 3D World ---
+  function init3DWorld() {
+    const container = document.getElementById('game-canvas-container');
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x060b19);
+    scene.fog = new THREE.FogExp2(0x060b19, 0.0045);
+
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 600);
+    camera.position.set(0, 4.4, 11.5);
+    camera.lookAt(0, 1.4, -20);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
+
+    // Lights
+    ambientLight = new THREE.AmbientLight(0xdbeafe, 0.65);
+    scene.add(ambientLight);
+
+    dirLight = new THREE.DirectionalLight(0xfffbeb, 1.25);
+    dirLight.position.set(35, 70, 40);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    scene.add(dirLight);
+
+    stadiumCyanLight = new THREE.PointLight(0x00f2fe, 1.4, 120);
+    stadiumCyanLight.position.set(0, 22, -30);
+    scene.add(stadiumCyanLight);
+
+    buildStarfieldSky();
+    build3DSkyHologramBeacon();
+    buildModularTrackAndGrandstands();
+    buildCrowdSpectators();
+    buildPlayerSupercar();
+    buildRivalCarsAndBoostRings();
+    buildFinishLineArch();
+
+    window.addEventListener('resize', onWindowResize);
+    requestAnimationFrame(animateLoop);
+  }
+
+  function create8KHologramTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 2048;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    ctx.clearRect(0, 0, 2048, 512);
+
+    // Translucent Holographic Glass Grid Backdrop
+    const bgGrad = ctx.createLinearGradient(0, 0, 2048, 0);
+    bgGrad.addColorStop(0, 'rgba(0, 242, 254, 0.02)');
+    bgGrad.addColorStop(0.2, 'rgba(0, 242, 254, 0.16)');
+    bgGrad.addColorStop(0.5, 'rgba(251, 191, 36, 0.22)');
+    bgGrad.addColorStop(0.8, 'rgba(0, 242, 254, 0.16)');
+    bgGrad.addColorStop(1, 'rgba(0, 242, 254, 0.02)');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(40, 30, 1968, 452);
+
+    // Fine 8K Hologram Scanlines
+    ctx.fillStyle = 'rgba(0, 242, 254, 0.09)';
+    for (let y = 35; y < 475; y += 8) {
+      ctx.fillRect(60, y, 1928, 2);
+    }
+
+    // Glowing Dual Frame
+    ctx.strokeStyle = 'rgba(0, 242, 254, 0.75)';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(50, 36, 1948, 440);
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.65)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(66, 52, 1916, 408);
+
+    // 3D Depth Extrusion Shadow for Arabic Motto
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '900 132px Cairo, sans-serif';
+    ctx.fillStyle = 'rgba(0, 242, 254, 0.28)';
+    ctx.fillText('بالميثاق نبلغ الآفاق', 1030, 226);
+
+    // Main Crisp 8K Metallic Gold-Cyan Gradient Motto
+    const textGrad = ctx.createLinearGradient(400, 120, 1648, 320);
+    textGrad.addColorStop(0, '#00f2fe');
+    textGrad.addColorStop(0.35, '#ffffff');
+    textGrad.addColorStop(0.65, '#fbbf24');
+    textGrad.addColorStop(1, '#00f2fe');
+    ctx.fillStyle = textGrad;
+    ctx.shadowColor = '#00f2fe';
+    ctx.shadowBlur = 28;
+    ctx.fillText('💠 بالميثاق نبلغ الآفاق 💠', 1024, 218);
+
+    // Subtitle Credit in Hologram
+    ctx.font = '800 54px Cairo, sans-serif';
+    ctx.fillStyle = 'rgba(254, 240, 138, 0.92)';
+    ctx.shadowColor = '#fbbf24';
+    ctx.shadowBlur = 16;
+    ctx.fillText('مدرسة المعارف حلقة ثالثة بنين • إعداد: أ.هشام غنوم', 1024, 375);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.anisotropy = 16;
+    return tex;
+  }
+
+  function build3DSkyHologramBeacon() {
+    skyHologramGroup = new THREE.Group();
+    const holoTex = create8KHologramTexture();
+    const holoMat = new THREE.MeshBasicMaterial({
+      map: holoTex,
+      transparent: true,
+      opacity: 0.78,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+
+    const holoBoard = new THREE.Mesh(new THREE.PlaneGeometry(36, 9), holoMat);
+    holoBoard.position.set(0, 18.5, -68);
+    skyHologramGroup.add(holoBoard);
+
+    // 3D Rotating Hologram Energy Rings flanking the Sky Motto
+    const ringGeo1 = new THREE.TorusGeometry(6.2, 0.09, 12, 48);
+    const ringMat1 = new THREE.MeshBasicMaterial({ color: 0x00f2fe, transparent: true, opacity: 0.55 });
+    skyHoloRing1 = new THREE.Mesh(ringGeo1, ringMat1);
+    skyHoloRing1.position.set(0, 18.5, -69);
+
+    const ringGeo2 = new THREE.TorusGeometry(7.4, 0.07, 12, 48);
+    const ringMat2 = new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.42 });
+    skyHoloRing2 = new THREE.Mesh(ringGeo2, ringMat2);
+    skyHoloRing2.position.set(0, 18.5, -69.5);
+
+    skyHologramGroup.add(skyHoloRing1, skyHoloRing2);
+    scene.add(skyHologramGroup);
+  }
+
+  function buildStarfieldSky() {
+    const starGeo = new THREE.BufferGeometry();
+    const count = 900;
+    const positions = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 500;
+      positions[i * 3 + 1] = 25 + Math.random() * 140;
+      positions[i * 3 + 2] = -Math.random() * 450;
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0xe0f2fe, size: 0.85, transparent: true, opacity: 0.8 });
+    scene.add(new THREE.Points(starGeo, starMat));
+  }
+
+  function buildModularTrackAndGrandstands() {
+    const asphaltTex = createAsphaltTexture();
+    const bannerTex1 = createBannerTexture('مدرسة المعارف حلقة ثالثة بنين', 'إعداد: أ.هشام غنوم | بالميثاق نبلغ الآفاق', '#0c4a6e', '#fbbf24');
+    const bannerTex2 = createBannerTexture('💠 بالميثاق نبلغ الآفاق 💠', 'إعداد: أ.هشام غنوم | مديرة المدرسة: أ.نوال غريب', '#1e1b4b', '#00f2fe');
+
+    const roadMat = new THREE.MeshStandardMaterial({ map: asphaltTex, roughness: 0.55, metalness: 0.15 });
+    const grassMat = new THREE.MeshStandardMaterial({ color: 0x064e3b, roughness: 0.9 });
+    turfMaterials.push(grassMat);
+    const curbRedMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.4 });
+    const curbWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 });
+    const standTierMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.6, metalness: 0.3 });
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.2 });
+    const lampGlowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+    const neonArchMat = new THREE.MeshBasicMaterial({ color: 0xd946ef });
+
+    for (let i = 0; i < NUM_SEGMENTS; i++) {
+      const segGroup = new THREE.Group();
+      segGroup.position.z = -i * SEGMENT_LENGTH;
+
+      // Main Asphalt Road (Width 16m)
+      const roadMesh = new THREE.Mesh(new THREE.PlaneGeometry(16, SEGMENT_LENGTH), roadMat);
+      roadMesh.rotation.x = -Math.PI / 2;
+      roadMesh.receiveShadow = true;
+      segGroup.add(roadMesh);
+
+      // Outer Turf / Apron
+      const turfMesh = new THREE.Mesh(new THREE.PlaneGeometry(110, SEGMENT_LENGTH), grassMat);
+      turfMesh.rotation.x = -Math.PI / 2;
+      turfMesh.position.y = -0.05;
+      segGroup.add(turfMesh);
+
+      // Red & White Racing Curbs
+      const numCurbs = 8;
+      const curbLen = SEGMENT_LENGTH / numCurbs;
+      for (let c = 0; c < numCurbs; c++) {
+        const cMat = c % 2 === 0 ? curbRedMat : curbWhiteMat;
+        const leftCurb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.18, curbLen), cMat);
+        leftCurb.position.set(-8.45, 0.09, -SEGMENT_LENGTH / 2 + c * curbLen + curbLen / 2);
+        segGroup.add(leftCurb);
+
+        const rightCurb = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.18, curbLen), cMat);
+        rightCurb.position.set(8.45, 0.09, -SEGMENT_LENGTH / 2 + c * curbLen + curbLen / 2);
+        segGroup.add(rightCurb);
+      }
+
+      // Stepped Stadium Grandstands on Both Sides (Brought closer so spectators are super clear!)
+      for (let tier = 0; tier < 4; tier++) {
+        const tierMeshL = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.1, SEGMENT_LENGTH - 0.3), standTierMat);
+        tierMeshL.position.set(-10.2 - tier * 1.75, 0.55 + tier * 1.05, 0);
+        segGroup.add(tierMeshL);
+
+        const tierMeshR = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.1, SEGMENT_LENGTH - 0.3), standTierMat);
+        tierMeshR.position.set(10.2 + tier * 1.75, 0.55 + tier * 1.05, 0);
+        segGroup.add(tierMeshR);
+      }
+
+      // Glass Safety Barrier along Grandstand Front
+      const barrierMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.22, side: THREE.DoubleSide });
+      const barrierL = new THREE.Mesh(new THREE.PlaneGeometry(SEGMENT_LENGTH, 1.1), barrierMat);
+      barrierL.rotation.y = Math.PI / 2;
+      barrierL.position.set(-9.1, 0.55, 0);
+      const barrierR = new THREE.Mesh(new THREE.PlaneGeometry(SEGMENT_LENGTH, 1.1), barrierMat);
+      barrierR.rotation.y = Math.PI / 2;
+      barrierR.position.set(9.1, 0.55, 0);
+      segGroup.add(barrierL, barrierR);
+
+      // Stadium Floodlights every segment
+      [-10.2, 10.2].forEach((xPos) => {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.22, 12, 8), poleMat);
+        pole.position.set(xPos, 6, 0);
+        segGroup.add(pole);
+
+        const lampHead = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.45, 0.7), lampGlowMat);
+        lampHead.position.set(xPos > 0 ? xPos - 0.6 : xPos + 0.6, 12, 0);
+        segGroup.add(lampHead);
+      });
+
+      // Overhead Gantry Banner every 3 segments
+      if (i % 3 === 1) {
+        const gantryGroup = new THREE.Group();
+        const pillarL = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 9.5, 12), poleMat);
+        pillarL.position.set(-9.3, 4.75, 0);
+        const pillarR = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 9.5, 12), poleMat);
+        pillarR.position.set(9.3, 4.75, 0);
+        gantryGroup.add(pillarL, pillarR);
+
+        const bannerMat = new THREE.MeshBasicMaterial({
+          map: i % 2 === 0 ? bannerTex1 : bannerTex2,
+          side: THREE.DoubleSide
+        });
+        const bannerBoard = new THREE.Mesh(new THREE.BoxGeometry(19.2, 3.4, 0.4), bannerMat);
+        bannerBoard.position.set(0, 8.3, 0);
+        gantryGroup.add(bannerBoard);
+        segGroup.add(gantryGroup);
+      }
+
+      // Cyberpunk Neon Laser Arch (Visible in Stage 3 & 4)
+      const neonRing = new THREE.Mesh(new THREE.TorusGeometry(9.2, 0.16, 10, 32, Math.PI), neonArchMat);
+      neonRing.position.set(0, 0.2, -SEGMENT_LENGTH * 0.5);
+      neonRing.visible = false;
+      segGroup.add(neonRing);
+      neonArches.push(neonRing);
+
+      scene.add(segGroup);
+      trackSegments.push(segGroup);
+    }
+  }
+
+  // --- Articulated 3D Human Spectators in Grandstands (Head, Torso, Waving Arms & Glow Sticks!) ---
+  function buildCrowdSpectators() {
+    const totalSpectators = CROWD_COUNT_PER_SIDE * 2;
+
+    // 1. Rounded Human Torso / Jersey
+    const torsoGeo = new THREE.CylinderGeometry(0.24, 0.20, 0.72, 10);
+    const torsoMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const torsoMesh = new THREE.InstancedMesh(torsoGeo, torsoMat, totalSpectators);
+
+    // 2. Human Head (Sphere)
+    const headGeo = new THREE.SphereGeometry(0.19, 12, 12);
+    const skinMat = new THREE.MeshLambertMaterial({ color: 0xfde68a });
+    const headMesh = new THREE.InstancedMesh(headGeo, skinMat, totalSpectators);
+
+    // 3. Articulated Left & Right Arms (Pivot at shoulder so they raise up and wave!)
+    const armGeo = new THREE.CylinderGeometry(0.065, 0.055, 0.58, 8);
+    armGeo.translate(0, 0.24, 0); // Pivot at shoulder joint
+    const armMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const leftArmMesh = new THREE.InstancedMesh(armGeo, armMat, totalSpectators);
+    const rightArmMesh = new THREE.InstancedMesh(armGeo, armMat, totalSpectators);
+
+    // 4. Cheering Neon Glow Stick / Flag held in Right Hand
+    const flagGeo = new THREE.BoxGeometry(0.08, 0.48, 0.28);
+    flagGeo.translate(0, 0.62, 0); // At tip of hand
+    const flagMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const flagMesh = new THREE.InstancedMesh(flagGeo, flagMat, totalSpectators);
+
+    const jerseyPalette = [
+      new THREE.Color(0x00f2fe),
+      new THREE.Color(0xfbbf24),
+      new THREE.Color(0xf43f5e),
+      new THREE.Color(0x10b981),
+      new THREE.Color(0xa855f7),
+      new THREE.Color(0x38bdf8),
+      new THREE.Color(0xffffff),
+      new THREE.Color(0xf97316)
+    ];
+
+    const skinPalette = [
+      new THREE.Color(0xfde68a),
+      new THREE.Color(0xfcd34d),
+      new THREE.Color(0xf59e0b),
+      new THREE.Color(0xfef3c7)
+    ];
+
+    crowdData = [];
+    for (let i = 0; i < totalSpectators; i++) {
+      const side = i < CROWD_COUNT_PER_SIDE ? -1 : 1;
+      const tier = i % 4;
+      const zPos = -Math.random() * (SEGMENT_LENGTH * (NUM_SEGMENTS - 2)) + 12;
+      const baseX = side * (10.1 + tier * 1.75 + (Math.random() - 0.5) * 0.55);
+      const baseY = 1.38 + tier * 1.05;
+      const phase = Math.random() * Math.PI * 2;
+      const speed = 3.5 + Math.random() * 3.5;
+      const hasFlag = i % 2 === 0;
+
+      crowdData.push({ side, tier, baseX, baseY, zPos, phase, speed, hasFlag });
+
+      const jColor = jerseyPalette[i % jerseyPalette.length];
+      const sColor = skinPalette[i % skinPalette.length];
+      torsoMesh.setColorAt(i, jColor);
+      leftArmMesh.setColorAt(i, jColor);
+      rightArmMesh.setColorAt(i, jColor);
+      headMesh.setColorAt(i, sColor);
+      flagMesh.setColorAt(i, jerseyPalette[(i + 2) % jerseyPalette.length]);
+    }
+
+    scene.add(torsoMesh, headMesh, leftArmMesh, rightArmMesh, flagMesh);
+    crowdParts = { torsoMesh, headMesh, leftArmMesh, rightArmMesh, flagMesh, totalSpectators };
+  }
+
+  // --- Spawn 3D Floating Cheer Banners in the Stadium when Crowd Celebrates! ---
+  function spawnStadiumCheerBanners() {
+    const phrases = [
+      '🎉 هيا يا بطل المعارف! 🎉',
+      '🔥 إجابة صحيحة! تيربو نيترو! 🔥',
+      '👏 الجمهور يحيّيك على المضمار! 👏',
+      '🏆 أسرع سائق في العلوم! 🏆'
+    ];
+
+    [-11.5, 11.5].forEach((xSide, idx) => {
+      const text = phrases[(STATE.currentQIndex + idx) % phrases.length];
+      const tex = createBannerTexture(text, 'هتاف جماهير مدرسة المعارف', '#065f46', '#fbbf24');
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 1, side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(8.5, 2.2), mat);
+      mesh.position.set(xSide, 5.5, -14 - idx * 8);
+      mesh.rotation.y = xSide < 0 ? 0.38 : -0.38;
+      scene.add(mesh);
+      cheerPopups.push({ mesh, age: 0 });
+    });
+  }
+
+  // --- High-Detail Realistic 3D Race Cars (Formula 1 Grand Prix & GT3 Carbon Supercar) ---
+  function createNumberDecalTexture(numStr) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(64, 64, 56, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = '#fbbf24';
+    ctx.stroke();
+    ctx.fillStyle = '#090d16';
+    ctx.font = '900 66px Orbitron, Cairo, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(numStr, 64, 68);
+    return new THREE.CanvasTexture(canvas);
+  }
+
+  function createPirelliWheel(radius, width, ringColorHex) {
+    const wGroup = new THREE.Group();
+
+    // Realistic Wide Racing Slick Tire
+    const tireGeo = new THREE.CylinderGeometry(radius, radius, width, 32);
+    tireGeo.rotateZ(Math.PI / 2);
+    const tireMat = new THREE.MeshStandardMaterial({ color: 0x111318, roughness: 0.78, metalness: 0.1 });
+    const tireMesh = new THREE.Mesh(tireGeo, tireMat);
+    tireMesh.castShadow = true;
+    wGroup.add(tireMesh);
+
+    // Pirelli Sidewall Colored Ring (Outer & Inner)
+    const ringGeo = new THREE.RingGeometry(radius * 0.64, radius * 0.78, 32);
+    const ringMat = new THREE.MeshBasicMaterial({ color: ringColorHex, side: THREE.DoubleSide });
+    const ringOut = new THREE.Mesh(ringGeo, ringMat);
+    ringOut.rotation.y = Math.PI / 2;
+    ringOut.position.x = width / 2 + 0.005;
+    const ringIn = new THREE.Mesh(ringGeo, ringMat);
+    ringIn.rotation.y = Math.PI / 2;
+    ringIn.position.x = -width / 2 - 0.005;
+    wGroup.add(ringOut, ringIn);
+
+    // Metallic Deep Alloy Rim
+    const rimGeo = new THREE.CylinderGeometry(radius * 0.62, radius * 0.62, width + 0.01, 24);
+    rimGeo.rotateZ(Math.PI / 2);
+    const rimMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9, roughness: 0.2 });
+    wGroup.add(new THREE.Mesh(rimGeo, rimMat));
+
+    // 10 Multi-Spoke Star Pattern + Center Lock Nut
+    const spokeMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.92, roughness: 0.15 });
+    for (let s = 0; s < 6; s++) {
+      const spoke = new THREE.Mesh(new THREE.BoxGeometry(width + 0.02, radius * 1.15, 0.045), spokeMat);
+      spoke.rotation.x = (s * Math.PI) / 6;
+      wGroup.add(spoke);
+    }
+
+    // glowing red center lock nut
+    const nutGeo = new THREE.CylinderGeometry(0.08, 0.08, width + 0.04, 16);
+    nutGeo.rotateZ(Math.PI / 2);
+    wGroup.add(new THREE.Mesh(nutGeo, new THREE.MeshBasicMaterial({ color: 0xef4444 })));
+
+    return wGroup;
+  }
+
+  function buildPlayerSupercar() {
+    if (carGroup) {
+      scene.remove(carGroup);
+    }
+    carGroup = new THREE.Group();
+    carGroup.position.set(0, 0.02, 4.3);
+    carGroup.scale.set(1.22, 1.22, 1.22);
+
+    carBodyMaterial = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(STATE.carColor),
+      emissive: new THREE.Color(STATE.carColor),
+      emissiveIntensity: 0.14,
+      metalness: 0.68,
+      roughness: 0.18
+    });
+
+    const carbonMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.35, metalness: 0.6 });
+    const chromeMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.15, metalness: 0.95 });
+    const goldAccentMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.25, metalness: 0.85 });
+    const visorMat = new THREE.MeshStandardMaterial({ color: 0x00f2fe, roughness: 0.08, metalness: 0.95 });
+    const rainLightMat = new THREE.MeshBasicMaterial({ color: 0xff1133 });
+    const decalTex = createNumberDecalTexture('10');
+
+    // Dedicated Showroom Overhead Light so the car curvature gleams realistically
+    const carSpotLight = new THREE.PointLight(0xffffff, 2.4, 25);
+    carSpotLight.position.set(0, 5.0, 1.2);
+    carGroup.add(carSpotLight);
+
+    wheels = [];
+    nitroFlames = [];
+
+    if (STATE.carModel === 'gt3') {
+      buildGT3SupercarGeometry(carbonMat, chromeMat, goldAccentMat, visorMat, rainLightMat, decalTex);
+    } else {
+      buildFormula1Geometry(carbonMat, chromeMat, goldAccentMat, visorMat, rainLightMat, decalTex);
+    }
+
+    scene.add(carGroup);
+  }
+
+  // --- MODEL 1: Authentic Formula 1 Grand Prix Race Car ---
+  function buildFormula1Geometry(carbonMat, chromeMat, goldAccentMat, visorMat, rainLightMat, decalTex) {
+    // 1. Carbon Fiber Underfloor & Plank (Stepped Aerodynamic Floor)
+    const floorShape = new THREE.Shape();
+    floorShape.moveTo(-0.98, -1.6);
+    floorShape.lineTo(0.98, -1.6);
+    floorShape.lineTo(1.08, 1.5);
+    floorShape.lineTo(0.65, 2.4);
+    floorShape.lineTo(-0.65, 2.4);
+    floorShape.lineTo(-1.08, 1.5);
+    floorShape.closePath();
+
+    const floorGeo = new THREE.ExtrudeGeometry(floorShape, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02 });
+    floorGeo.rotateX(Math.PI / 2);
+    const floorMesh = new THREE.Mesh(floorGeo, carbonMat);
+    floorMesh.position.y = 0.22;
+    floorMesh.castShadow = true;
+    carGroup.add(floorMesh);
+
+    // 2. Sculpted Central Monocoque & Engine Cover Spine
+    const bodyGeo = new THREE.CylinderGeometry(0.32, 0.56, 2.8, 20);
+    bodyGeo.rotateX(Math.PI / 2);
+    bodyGeo.scale(1.15, 0.82, 1);
+    const monocoque = new THREE.Mesh(bodyGeo, carBodyMaterial);
+    monocoque.position.set(0, 0.54, 0.2);
+    monocoque.castShadow = true;
+    carGroup.add(monocoque);
+
+    // 3. Tapered Aerodynamic Front Nose Cone (Sloping down toward front wing)
+    const noseGeo = new THREE.CylinderGeometry(0.14, 0.34, 1.95, 20);
+    noseGeo.rotateX(Math.PI / 2);
+    noseGeo.scale(1.15, 0.65, 1);
+    const noseCone = new THREE.Mesh(noseGeo, carBodyMaterial);
+    noseCone.position.set(0, 0.42, -1.95);
+    noseCone.rotation.x = 0.11;
+    noseCone.castShadow = true;
+    carGroup.add(noseCone);
+
+    // Number #10 Racing Badge on Nose Cone
+    const decalPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.36, 0.36),
+      new THREE.MeshBasicMaterial({ map: decalTex, transparent: true })
+    );
+    decalPlane.rotation.x = -Math.PI / 2 + 0.11;
+    decalPlane.position.set(0, 0.55, -1.75);
+    carGroup.add(decalPlane);
+
+    // 4. Sculpted Aerodynamic Sidepods (Left & Right Radiator Intakes)
+    [-0.58, 0.58].forEach((xSide) => {
+      const sidepodGeo = new THREE.CylinderGeometry(0.24, 0.4, 2.15, 16);
+      sidepodGeo.rotateX(Math.PI / 2);
+      sidepodGeo.scale(1.15, 0.82, 1);
+      const sidepod = new THREE.Mesh(sidepodGeo, carBodyMaterial);
+      sidepod.position.set(xSide, 0.46, 0.35);
+      sidepod.rotation.y = xSide > 0 ? -0.12 : 0.12;
+      sidepod.castShadow = true;
+      carGroup.add(sidepod);
+
+      // Dark Air Intake Scoop Opening
+      const scoop = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.28, 0.12), carbonMat);
+      scoop.position.set(xSide * 1.05, 0.48, -0.68);
+      carGroup.add(scoop);
+
+      // Gold Sidepod Trim Stripe
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 1.85), goldAccentMat);
+      trim.position.set(xSide * 1.42, 0.48, 0.35);
+      trim.rotation.y = xSide > 0 ? -0.12 : 0.12;
+      carGroup.add(trim);
+    });
+
+    // 5. Overhead Airbox Roll Hoop & Aerodynamic Shark Fin Engine Cover
+    const airbox = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 0.85, 16), carBodyMaterial);
+    airbox.position.set(0, 0.88, 0.35);
+    airbox.rotation.x = -0.35;
+    carGroup.add(airbox);
+
+    // T-Cam onboard camera atop airbox
+    const tCam = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, 0.14), goldAccentMat);
+    tCam.position.set(0, 1.28, 0.28);
+    carGroup.add(tCam);
+
+    // Carbon Shark Fin Sail toward Rear Wing
+    const finShape = new THREE.Shape();
+    finShape.moveTo(0, 0.65);
+    finShape.lineTo(0, 1.22);
+    finShape.lineTo(1.55, 0.82);
+    finShape.lineTo(1.55, 0.55);
+    finShape.closePath();
+    const finGeo = new THREE.ExtrudeGeometry(finShape, { depth: 0.04, bevelEnabled: false });
+    finGeo.rotateY(Math.PI / 2);
+    const sharkFin = new THREE.Mesh(finGeo, carbonMat);
+    sharkFin.position.set(-0.02, 0, 0.35);
+    carGroup.add(sharkFin);
+
+    // 6. Open Cockpit, Driver Racing Helmet & Authentic Titanium HALO Bar
+    const cockpitOpening = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.85, 16), carbonMat);
+    cockpitOpening.rotateX(Math.PI / 2);
+    cockpitOpening.scale.set(1.1, 0.5, 1);
+    cockpitOpening.position.set(0, 0.68, -0.35);
+    carGroup.add(cockpitOpening);
+
+    // Driver Helmet & Visor
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.21, 20, 20), goldAccentMat);
+    helmet.position.set(0, 0.84, -0.25);
+    carGroup.add(helmet);
+
+    const visor = new THREE.Mesh(new THREE.CylinderGeometry(0.215, 0.215, 0.12, 16, 1, false, -Math.PI * 0.4, Math.PI * 0.8), visorMat);
+    visor.position.set(0, 0.85, -0.26);
+    visor.rotation.y = Math.PI;
+    carGroup.add(visor);
+
+    // F1 Titanium Halo Protection Hoop
+    const haloRing = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.038, 12, 24, Math.PI), carbonMat);
+    haloRing.rotation.x = Math.PI / 2 + 0.18;
+    haloRing.rotation.z = Math.PI;
+    haloRing.position.set(0, 0.94, -0.25);
+    carGroup.add(haloRing);
+
+    const haloPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.038, 0.35, 12), carbonMat);
+    haloPillar.position.set(0, 0.8, -0.62);
+    haloPillar.rotation.x = 0.45;
+    carGroup.add(haloPillar);
+
+    // 7. Multi-Element Front Wing with Endplates
+    const fwMain = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.05, 0.38), carbonMat);
+    fwMain.position.set(0, 0.22, -2.75);
+    carGroup.add(fwMain);
+
+    const fwFlap = new THREE.Mesh(new THREE.BoxGeometry(2.32, 0.04, 0.24), carBodyMaterial);
+    fwFlap.position.set(0, 0.28, -2.62);
+    fwFlap.rotation.x = 0.22;
+    carGroup.add(fwFlap);
+
+    [-1.18, 1.18].forEach((xEnd) => {
+      const endplate = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.32, 0.55), carBodyMaterial);
+      endplate.position.set(xEnd, 0.32, -2.7);
+      carGroup.add(endplate);
+    });
+
+    // 8. High-Downforce DRS Rear Wing & Rain Light
+    const rwSupport = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.72, 0.28), carbonMat);
+    rwSupport.position.set(0, 0.85, 2.08);
+    carGroup.add(rwSupport);
+
+    const rwMainPlane = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.07, 0.38), carBodyMaterial);
+    rwMainPlane.position.set(0, 1.18, 2.15);
+    rwMainPlane.rotation.x = 0.18;
+    carGroup.add(rwMainPlane);
+
+    const rwDrsFlap = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.06, 0.24), carbonMat);
+    rwDrsFlap.position.set(0, 1.32, 2.22);
+    rwDrsFlap.rotation.x = 0.35;
+    carGroup.add(rwDrsFlap);
+
+    [-0.87, 0.87].forEach((xEnd) => {
+      const rwEndplate = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.82, 0.58), carbonMat);
+      rwEndplate.position.set(xEnd, 1.04, 2.16);
+      carGroup.add(rwEndplate);
+
+      const ledStrip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.45, 0.04), rainLightMat);
+      ledStrip.position.set(xEnd, 1.08, 2.45);
+      carGroup.add(ledStrip);
+    });
+
+    // Center FIA Flashing Red Rain Light & Exhaust Pipe
+    const fiaLight = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.22, 0.08), rainLightMat);
+    fiaLight.position.set(0, 0.44, 2.38);
+    carGroup.add(fiaLight);
+
+    const exhaustPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.4, 16), chromeMat);
+    exhaustPipe.rotateX(Math.PI / 2);
+    exhaustPipe.position.set(0, 0.62, 2.32);
+    carGroup.add(exhaustPipe);
+
+    // Nitro Afterburner Plume
+    const flameGeo = new THREE.ConeGeometry(0.28, 2.2, 16);
+    flameGeo.rotateX(Math.PI / 2);
+    const flameMat = new THREE.MeshBasicMaterial({ color: 0x00f2fe, transparent: true, opacity: 0.4 });
+    const centerFlame = new THREE.Mesh(flameGeo, flameMat);
+    centerFlame.position.set(0, 0.62, 3.4);
+    carGroup.add(centerFlame);
+    nitroFlames.push(centerFlame);
+
+    // 9. Double-Wishbone Suspension A-Arms & 4 Wide Open-Wheel Pirelli Tires
+    const wheelLayout = [
+      { x: -1.18, y: 0.42, z: -1.68, r: 0.42, w: 0.42 }, // Front Left
+      { x:  1.18, y: 0.42, z: -1.68, r: 0.42, w: 0.42 }, // Front Right
+      { x: -1.24, y: 0.45, z:  1.52, r: 0.45, w: 0.54 }, // Rear Left (Wider F1 Slick)
+      { x:  1.24, y: 0.45, z:  1.52, r: 0.45, w: 0.54 }  // Rear Right
+    ];
+
+    wheelLayout.forEach((wl) => {
+      // Upper & Lower Carbon Suspension Struts connecting Chassis to Wheel Hub
+      const strutLen = Math.abs(wl.x) - 0.3;
+      const strutCenter = wl.x > 0 ? 0.3 + strutLen / 2 : -0.3 - strutLen / 2;
+
+      const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, strutLen, 8), carbonMat);
+      upperArm.rotateZ(Math.PI / 2);
+      upperArm.position.set(strutCenter, wl.y + 0.1, wl.z);
+      carGroup.add(upperArm);
+
+      const lowerArm = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, strutLen, 8), carbonMat);
+      lowerArm.rotateZ(Math.PI / 2);
+      lowerArm.position.set(strutCenter, wl.y - 0.1, wl.z);
+      carGroup.add(lowerArm);
+
+      const pushrod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, strutLen * 1.05, 8), goldAccentMat);
+      pushrod.rotateZ(wl.x > 0 ? Math.PI / 2 - 0.25 : Math.PI / 2 + 0.25);
+      pushrod.position.set(strutCenter, wl.y + 0.04, wl.z - 0.08);
+      carGroup.add(pushrod);
+
+      const wheelMesh = createPirelliWheel(wl.r, wl.w, 0xfbbf24);
+      wheelMesh.position.set(wl.x, wl.y, wl.z);
+      carGroup.add(wheelMesh);
+      wheels.push(wheelMesh);
+    });
+  }
+
+  // --- MODEL 2: Sculpted GT3 Carbon Supercar (Ferrari / McLaren GT3 Silhouette) ---
+  function buildGT3SupercarGeometry(carbonMat, chromeMat, goldAccentMat, visorMat, rainLightMat, decalTex) {
+    // 1. Extruded Aerodynamic Supercar Side Profile (Curved Hood, Fastback Roofline, Rear Deck)
+    const profile = new THREE.Shape();
+    profile.moveTo(-2.45, 0.22);
+    profile.lineTo(-2.35, 0.52);
+    profile.quadraticCurveTo(-1.55, 0.72, -0.85, 0.76); // Sleek Hood
+    profile.quadraticCurveTo(-0.35, 1.24, 0.25, 1.22);  // Curved Windshield & Roof
+    profile.quadraticCurveTo(1.25, 1.18, 2.25, 0.84);   // Fastback Engine Louvers
+    profile.lineTo(2.42, 0.78);
+    profile.lineTo(2.42, 0.26);
+    profile.closePath();
+
+    const bodyGeo = new THREE.ExtrudeGeometry(profile, {
+      depth: 1.96,
+      bevelEnabled: true,
+      bevelSegments: 5,
+      steps: 1,
+      bevelSize: 0.16,
+      bevelThickness: 0.16
+    });
+    // Orient so length is along Z and width is along X
+    bodyGeo.rotateY(Math.PI / 2);
+    bodyGeo.translate(-0.98, 0, 0);
+
+    const mainBody = new THREE.Mesh(bodyGeo, carBodyMaterial);
+    mainBody.castShadow = true;
+    carGroup.add(mainBody);
+
+    // 2. Sculpted Smoked Glass Cabin Canopy & Windshield
+    const cabinProfile = new THREE.Shape();
+    cabinProfile.moveTo(-0.82, 0.75);
+    cabinProfile.quadraticCurveTo(-0.32, 1.26, 0.28, 1.24);
+    cabinProfile.quadraticCurveTo(1.05, 1.18, 1.48, 0.86);
+    cabinProfile.lineTo(-0.82, 0.75);
+
+    const cabinGeo = new THREE.ExtrudeGeometry(cabinProfile, {
+      depth: 1.42,
+      bevelEnabled: true,
+      bevelSegments: 4,
+      bevelSize: 0.08,
+      bevelThickness: 0.08
+    });
+    cabinGeo.rotateY(Math.PI / 2);
+    cabinGeo.translate(-0.71, 0.02, 0);
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.08, metalness: 0.95 });
+    carGroup.add(new THREE.Mesh(cabinGeo, glassMat));
+
+    // 3. Muscular Flared Fender Arches (Front & Rear Wheel Fenders)
+    const archPositions = [
+      [-1.02, 0.45, -1.48],
+      [ 1.02, 0.45, -1.48],
+      [-1.06, 0.48,  1.45],
+      [ 1.06, 0.48,  1.45]
+    ];
+    archPositions.forEach(([ax, ay, az]) => {
+      const fender = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.56, 0.42, 20), carBodyMaterial);
+      fender.rotateZ(Math.PI / 2);
+      fender.scale.set(1, 0.82, 1.15);
+      fender.position.set(ax, ay, az);
+      carGroup.add(fender);
+    });
+
+    // 4. Carbon Fiber Front Splitter, Side Skirts & Rear GT3 Diffuser
+    const splitter = new THREE.Mesh(new THREE.BoxGeometry(2.38, 0.08, 5.15), carbonMat);
+    splitter.position.set(0, 0.2, 0);
+    carGroup.add(splitter);
+
+    // Dual Gold Racing Stripes
+    [-0.18, 0.18].forEach((sx) => {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.04, 4.75), goldAccentMat);
+      stripe.position.set(sx, 0.82, 0.05);
+      carGroup.add(stripe);
+    });
+
+    // 5. Swan-Neck Carbon GT3 Rear Wing
+    [-0.65, 0.65].forEach((px) => {
+      const strut = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, 0.25), carbonMat);
+      strut.position.set(px, 1.1, 2.15);
+      strut.rotation.x = -0.2;
+      carGroup.add(strut);
+    });
+    const gtWing = new THREE.Mesh(new THREE.BoxGeometry(2.38, 0.08, 0.48), carbonMat);
+    gtWing.position.set(0, 1.38, 2.24);
+    gtWing.rotation.x = 0.18;
+    carGroup.add(gtWing);
+
+    // 6. Aggressive LED Quad Tail Lights & Dual Nitro Exhausts
+    const ledBar = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.1, 0.08), rainLightMat);
+    ledBar.position.set(0, 0.72, 2.46);
+    carGroup.add(ledBar);
+
+    const flameGeo = new THREE.ConeGeometry(0.24, 1.9, 14);
+    flameGeo.rotateX(Math.PI / 2);
+    const flameMat = new THREE.MeshBasicMaterial({ color: 0x00f2fe, transparent: true, opacity: 0.4 });
+    [-0.48, 0.48].forEach((ex) => {
+      const flame = new THREE.Mesh(flameGeo, flameMat.clone());
+      flame.position.set(ex, 0.36, 3.35);
+      carGroup.add(flame);
+      nitroFlames.push(flame);
+    });
+
+    // 7. 4 Wide GT3 Pirelli Wheels
+    const gtWheels = [
+      [-1.16, 0.44, -1.48],
+      [ 1.16, 0.44, -1.48],
+      [-1.20, 0.46,  1.45],
+      [ 1.20, 0.46,  1.45]
+    ];
+    gtWheels.forEach(([wx, wy, wz]) => {
+      const wMesh = createPirelliWheel(0.45, 0.42, 0x00f2fe);
+      wMesh.position.set(wx, wy, wz);
+      carGroup.add(wMesh);
+      wheels.push(wMesh);
+    });
+  }
+
+  // --- Rival AI Race Cars & On-Track Interactive Energy Boost Rings ---
+  function createRivalF1CarMesh(colorHex) {
+    const rGroup = new THREE.Group();
+    const rBodyMat = new THREE.MeshStandardMaterial({ color: colorHex, metalness: 0.65, roughness: 0.2 });
+    const rCarbon = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.4 });
+
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.5, 3.6, 16), rBodyMat);
+    body.rotateX(Math.PI / 2);
+    body.scale.set(1.1, 0.7, 1);
+    body.position.y = 0.45;
+    rGroup.add(body);
+
+    const fWing = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.06, 0.35), rCarbon);
+    fWing.position.set(0, 0.22, -1.9);
+    const rWing = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.45, 0.35), rCarbon);
+    rWing.position.set(0, 0.85, 1.75);
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 12), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+    helmet.position.set(0, 0.75, -0.1);
+    rGroup.add(fWing, rWing, helmet);
+
+    const wCoords = [
+      [-1.05, 0.38, -1.3],
+      [ 1.05, 0.38, -1.3],
+      [-1.10, 0.40,  1.3],
+      [ 1.10, 0.40,  1.3]
+    ];
+    wCoords.forEach(([wx, wy, wz]) => {
+      const w = createPirelliWheel(0.38, 0.36, colorHex);
+      w.position.set(wx, wy, wz);
+      rGroup.add(w);
+    });
+
+    return rGroup;
+  }
+
+  function buildRivalCarsAndBoostRings() {
+    const rivalColors = [0x38bdf8, 0xf59e0b, 0xa855f7];
+    const rivalLanes = [-4.2, 4.2, -4.2];
+    rivalCars = [];
+
+    for (let r = 0; r < 3; r++) {
+      const mesh = createRivalF1CarMesh(rivalColors[r]);
+      const zStart = -22 - r * 38;
+      mesh.position.set(rivalLanes[r], 0.02, zStart);
+      scene.add(mesh);
+      rivalCars.push({
+        mesh,
+        baseLaneX: rivalLanes[r],
+        zOffset: zStart,
+        relativeSpeed: -8 - r * 4 // Player gradually catches and overtakes them!
+      });
+    }
+
+    // 3 On-Track Interactive Golden/Cyan Turbo Boost Rings!
+    boostRings = [];
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0x00f2fe });
+    const innerMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+    const ringLanes = [0, -4.2, 4.2];
+
+    for (let b = 0; b < 3; b++) {
+      const bGroup = new THREE.Group();
+      const torus = new THREE.Mesh(new THREE.TorusGeometry(1.45, 0.12, 12, 28), ringMat);
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(1.35, 24), innerMat);
+      bGroup.add(torus, disc);
+      const zPos = -45 - b * 65;
+      bGroup.position.set(ringLanes[b], 1.35, zPos);
+      scene.add(bGroup);
+      boostRings.push({ group: bGroup, laneX: ringLanes[b], zPos, collected: false });
+    }
+  }
+
+  function applyWorldStageBiome(questionIdx) {
+    const stageIdx = Math.min(STAGES.length - 1, Math.floor(questionIdx / 6));
+    const stage = STAGES[stageIdx];
+
+    // Alternate curve direction on every question to keep steering dynamic!
+    const curvePatterns = [0, 0.32, -0.35, 0.25, -0.28, 0.4, -0.4];
+    targetCurveAmount = curvePatterns[questionIdx % curvePatterns.length];
+
+    const stageBadge = document.getElementById('hud-stage-badge');
+    if (stageBadge) {
+      stageBadge.textContent = stage.name;
+    }
+
+    if (stageIdx === currentStageIndex) return;
+    currentStageIndex = stageIdx;
+
+    if (scene) {
+      scene.background = new THREE.Color(stage.skyColor);
+      scene.fog.color.setHex(stage.fogColor);
+    }
+    if (ambientLight) ambientLight.color.setHex(stage.ambientColor);
+    if (dirLight) dirLight.color.setHex(stage.dirColor);
+    if (stadiumCyanLight) stadiumCyanLight.color.setHex(stage.neonColor);
+
+    turfMaterials.forEach((m) => m.color.setHex(stage.turfColor));
+    neonArches.forEach((arch) => {
+      arch.visible = stage.showNeonTunnel;
+      arch.material.color.setHex(stage.neonColor);
+    });
+  }
+
+  function buildFinishLineArch() {
+    finishArchGroup = new THREE.Group();
+    const checkerTex = createCheckerTexture();
+    const archMat = new THREE.MeshStandardMaterial({ map: checkerTex });
+
+    const leftCol = new THREE.Mesh(new THREE.BoxGeometry(1.2, 10, 1.2), archMat);
+    leftCol.position.set(-8.6, 5, 0);
+    const rightCol = new THREE.Mesh(new THREE.BoxGeometry(1.2, 10, 1.2), archMat);
+    rightCol.position.set(8.6, 5, 0);
+
+    const topBannerTex = createBannerTexture('🏁 خط النهاية - FINISH LINE 🏁', 'إعداد: أ.هشام غنوم | مدرسة المعارف', '#065f46', '#fbbf24');
+    const topBeam = new THREE.Mesh(
+      new THREE.BoxGeometry(18.6, 3.2, 1.2),
+      new THREE.MeshBasicMaterial({ map: topBannerTex })
+    );
+    topBeam.position.set(0, 9.2, 0);
+
+    finishArchGroup.add(leftCol, rightCol, topBeam);
+    finishArchGroup.position.z = -350;
+    finishArchGroup.visible = false;
+    scene.add(finishArchGroup);
+  }
+
+  // --- Spawn 3D Celebratory Fireworks above Grandstands ---
+  function spawnCelebrationFireworks() {
+    const colors = [0x00f2fe, 0xfbbf24, 0x10b981, 0xf43f5e, 0xa855f7];
+    for (let b = 0; b < 4; b++) {
+      const count = 45;
+      const geo = new THREE.BufferGeometry();
+      const positions = new Float32Array(count * 3);
+      const velocities = [];
+
+      const originX = (b % 2 === 0 ? -1 : 1) * (13 + Math.random() * 8);
+      const originY = 10 + Math.random() * 7;
+      const originZ = -18 - Math.random() * 35;
+
+      for (let i = 0; i < count; i++) {
+        positions[i * 3] = originX;
+        positions[i * 3 + 1] = originY;
+        positions[i * 3 + 2] = originZ;
+
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.random() * Math.PI;
+        const spd = 6 + Math.random() * 10;
+        velocities.push({
+          vx: Math.sin(phi) * Math.cos(theta) * spd,
+          vy: Math.cos(phi) * spd,
+          vz: Math.sin(phi) * Math.sin(theta) * spd
+        });
+      }
+
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const mat = new THREE.PointsMaterial({
+        color: colors[b % colors.length],
+        size: 0.75,
+        transparent: true,
+        opacity: 1
+      });
+      const points = new THREE.Points(geo, mat);
+      scene.add(points);
+      fireworks.push({ points, velocities, age: 0 });
+    }
+  }
+
+  function onWindowResize() {
+    if (!camera || !renderer) return;
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  // --- Main 60FPS Animation Loop ---
+  let lastTime = performance.now();
+  function animateLoop(now) {
+    requestAnimationFrame(animateLoop);
+    const dt = Math.min((now - lastTime) / 1000, 0.1);
+    lastTime = now;
+
+    // If paused, freeze 3D physics & movement while keeping scene rendered
+    if (STATE.isPaused) {
+      audio.updateEnginePitch(0);
+      // Animate 3D 8K Sky Hologram Watermark ("بالميثاق نبلغ الآفاق")
+    if (skyHologramGroup && skyHoloRing1 && skyHoloRing2) {
+      skyHologramGroup.position.y = Math.sin(now * 0.0022) * 0.65;
+      skyHologramGroup.rotation.y = Math.sin(now * 0.0012) * 0.08;
+      skyHoloRing1.rotation.z = now * 0.0015;
+      skyHoloRing1.rotation.x = Math.sin(now * 0.001) * 0.45;
+      skyHoloRing2.rotation.z = -now * 0.0012;
+      skyHoloRing2.rotation.y = Math.cos(now * 0.001) * 0.45;
+    }
+
+    renderer.render(scene, camera);
+      return;
+    }
+
+    // Smooth speed interpolation
+    const target = STATE.raceActive ? STATE.targetSpeed : 45;
+    STATE.speed += (target - STATE.speed) * Math.min(1, dt * 3.5);
+    if (STATE.speed > STATE.topSpeed && STATE.raceActive) {
+      STATE.topSpeed = Math.round(STATE.speed);
+    }
+
+    audio.updateEnginePitch(STATE.speed);
+    updateSpeedometerUI(STATE.speed);
+
+    // Smoothly interpolate Dynamic Track Curvature & Hills (Bends the road ahead!)
+    currentCurveAmount += (targetCurveAmount - currentCurveAmount) * dt * 1.5;
+    trackCurvePhase += dt * (STATE.speed * 0.012);
+
+    // Move Track Segments toward Camera with Dynamic Bend & Elevation
+    const forwardStep = (STATE.speed * 0.34) * dt;
+    trackSegments.forEach((seg) => {
+      seg.position.z += forwardStep;
+      if (seg.position.z > SEGMENT_LENGTH) {
+        seg.position.z -= NUM_SEGMENTS * SEGMENT_LENGTH;
+      }
+      // Apply realistic gentle curve & hill offset based on distance ahead
+      const distAhead = Math.max(0, -seg.position.z);
+      const curveFactor = (distAhead / 140) * (distAhead / 140);
+      seg.position.x = currentCurveAmount * curveFactor * 18;
+      seg.position.y = Math.sin(distAhead * 0.025 + trackCurvePhase) * (curveFactor * 1.4);
+      seg.rotation.y = -currentCurveAmount * (distAhead / 260) * 0.35;
+    });
+
+    // Animate Rival AI Race Cars (Player overtakes them when boosting!)
+    rivalCars.forEach((rc, idx) => {
+      // Relative motion based on player speed vs rival cruise speed (155 km/h)
+      const relStep = ((STATE.speed - (142 + idx * 14)) * 0.25) * dt;
+      rc.zOffset += relStep;
+
+      if (rc.zOffset > 18) {
+        // Player overtook this rival! Respawn further ahead
+        rc.zOffset = -165 - Math.random() * 50;
+        const lanes = [-4.2, 0, 4.2];
+        rc.baseLaneX = lanes[Math.floor(Math.random() * lanes.length)];
+      } else if (rc.zOffset < -220) {
+        rc.zOffset = -28;
+      }
+
+      const distAhead = Math.max(0, -rc.zOffset);
+      const curveOffset = currentCurveAmount * ((distAhead / 140) ** 2) * 18;
+      const hillY = Math.sin(distAhead * 0.025 + trackCurvePhase) * (((distAhead / 140) ** 2) * 1.4);
+      rc.mesh.position.set(rc.baseLaneX + curveOffset, 0.02 + hillY, rc.zOffset);
+      rc.mesh.rotation.y = -currentCurveAmount * (distAhead / 260) * 0.35;
+    });
+
+    // Animate Interactive On-Track Energy Boost Rings & Check Collection!
+    boostRings.forEach((br) => {
+      br.zPos += forwardStep;
+      br.group.rotation.z += dt * 2.5;
+
+      const distAhead = Math.max(0, -br.zPos);
+      const curveOffset = currentCurveAmount * ((distAhead / 140) ** 2) * 18;
+      const hillY = Math.sin(distAhead * 0.025 + trackCurvePhase) * (((distAhead / 140) ** 2) * 1.4);
+      br.group.position.set(br.laneX + curveOffset, 1.35 + hillY, br.zPos);
+
+      // Check if Player Car passes through this Boost Ring!
+      if (!br.collected && STATE.raceActive && Math.abs(br.zPos - 4.3) < 2.4 && Math.abs(STATE.currentCarX - br.laneX) < 2.1) {
+        br.collected = true;
+        STATE.score += 50;
+        STATE.targetSpeed = Math.min(360, STATE.targetSpeed + 12);
+        STATE.nitroTimer = Math.max(STATE.nitroTimer, 1.1);
+        document.getElementById('hud-score').textContent = STATE.score.toLocaleString('en-US');
+        document.getElementById('hud-crowd-status').textContent = '⚡ التقطت حلقة طاقة (+50 نقطة)!';
+      }
+
+      if (br.zPos > 14) {
+        br.zPos = -170 - Math.random() * 45;
+        const lanes = [-4.2, 0, 4.2];
+        br.laneX = lanes[Math.floor(Math.random() * lanes.length)];
+        br.collected = false;
+      }
+    });
+
+    // Move Finish Arch when near completion
+    if (finishArchGroup && finishArchGroup.visible) {
+      finishArchGroup.position.z += forwardStep;
+      if (finishArchGroup.position.z > 15) {
+        finishArchGroup.position.z = -120;
+      }
+    }
+
+    // Smooth Car Steering & Chassis Tilt
+    STATE.currentCarX += (STATE.laneX - STATE.currentCarX) * Math.min(1, dt * 8);
+    if (carGroup) {
+      carGroup.position.x = STATE.currentCarX;
+      const steerDelta = STATE.laneX - STATE.currentCarX;
+      carGroup.rotation.z = -steerDelta * 0.065;
+      carGroup.rotation.y = -steerDelta * 0.045;
+      // Engine vibration bounce
+      carGroup.position.y = Math.sin(now * 0.03) * 0.025;
+    }
+
+    // Spin Wheels
+    wheels.forEach((w) => {
+      w.rotation.x -= forwardStep * 0.65;
+    });
+
+    // Nitro Flame Animation
+    if (STATE.nitroTimer > 0) {
+      STATE.nitroTimer -= dt;
+      nitroFlames.forEach((f) => {
+        f.material.opacity = 0.85;
+        f.scale.set(1 + Math.random() * 0.3, 1 + Math.random() * 0.3, 1.2 + Math.random() * 0.6);
+      });
+    } else {
+      nitroFlames.forEach((f) => {
+        f.material.opacity = Math.max(0, f.material.opacity - dt * 3);
+      });
+    }
+
+    // Animate 720 Articulated 3D Human Spectators (Jump, Turn to Car, Raise & Wave Arms + Flags!)
+    if (crowdParts) {
+      const isCheering = STATE.celebrationTimer > 0;
+      if (isCheering) STATE.celebrationTimer -= dt;
+
+      const dummy = new THREE.Object3D();
+      const jumpAmp = isCheering ? 0.85 : 0.08;
+      const freqMult = isCheering ? 4.2 : 1.0;
+
+      for (let i = 0; i < crowdParts.totalSpectators; i++) {
+        const cd = crowdData[i];
+        cd.zPos += forwardStep;
+        if (cd.zPos > 16) {
+          cd.zPos -= SEGMENT_LENGTH * (NUM_SEGMENTS - 2);
+        }
+
+        // Stadium Wave + Joyful Jumping when Cheering (Follows curved track!)
+        const distAhead = Math.max(0, -cd.zPos);
+        const curveX = currentCurveAmount * ((distAhead / 140) ** 2) * 18;
+        const hillY = Math.sin(distAhead * 0.025 + trackCurvePhase) * (((distAhead / 140) ** 2) * 1.4);
+        const waveOffset = cd.zPos * 0.15;
+        const bounce = Math.abs(Math.sin(now * 0.0045 * cd.speed * freqMult + cd.phase + waveOffset)) * jumpAmp;
+        const curX = cd.baseX + curveX;
+        const curY = cd.baseY + bounce + hillY;
+
+        // Face towards the racing track
+        const faceAngle = cd.side < 0 ? Math.PI * 0.35 : -Math.PI * 0.35;
+        const bodyTwist = isCheering ? Math.sin(now * 0.012 + cd.phase) * 0.35 : 0;
+
+        // 1. Torso
+        dummy.position.set(curX, curY, cd.zPos);
+        dummy.rotation.set(0, faceAngle + bodyTwist, 0);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+        crowdParts.torsoMesh.setMatrixAt(i, dummy.matrix);
+
+        // 2. Head (Bobs and looks at the car)
+        dummy.position.set(curX, curY + 0.54, cd.zPos);
+        dummy.rotation.set(isCheering ? Math.sin(now * 0.02 + i) * 0.25 : 0, faceAngle + bodyTwist, 0);
+        dummy.updateMatrix();
+        crowdParts.headMesh.setMatrixAt(i, dummy.matrix);
+
+        // 3. Left & Right Arms: When cheering, raise arms high overhead (PI) and wave vigorously!
+        const shoulderOffset = 0.26;
+        const sxL = curX - Math.cos(faceAngle) * shoulderOffset;
+        const szL = cd.zPos + Math.sin(faceAngle) * shoulderOffset;
+        const sxR = curX + Math.cos(faceAngle) * shoulderOffset;
+        const szR = cd.zPos - Math.sin(faceAngle) * shoulderOffset;
+
+        if (isCheering) {
+          // Arms raised up high waving side to side!
+          const waveAngle = Math.sin(now * 0.022 * (cd.speed * 0.5) + cd.phase) * 0.55;
+          dummy.position.set(sxL, curY + 0.26, szL);
+          dummy.rotation.set(waveAngle * 0.4, faceAngle, 0.35 + waveAngle);
+          dummy.updateMatrix();
+          crowdParts.leftArmMesh.setMatrixAt(i, dummy.matrix);
+
+          dummy.position.set(sxR, curY + 0.26, szR);
+          dummy.rotation.set(-waveAngle * 0.4, faceAngle, -0.35 + waveAngle);
+          dummy.updateMatrix();
+          crowdParts.rightArmMesh.setMatrixAt(i, dummy.matrix);
+
+          // Waving Flag / Glow Stick in Right Hand
+          if (cd.hasFlag) {
+            dummy.scale.set(1.2, 1.2, 1.2);
+          } else {
+            dummy.scale.set(0.001, 0.001, 0.001);
+          }
+          dummy.updateMatrix();
+          crowdParts.flagMesh.setMatrixAt(i, dummy.matrix);
+        } else {
+          // Normal resting / slight clapping posture
+          const idleSway = Math.sin(now * 0.004 + cd.phase) * 0.12;
+          dummy.position.set(sxL, curY + 0.24, szL);
+          dummy.rotation.set(0.3, faceAngle, 2.5 + idleSway);
+          dummy.scale.set(1, 1, 1);
+          dummy.updateMatrix();
+          crowdParts.leftArmMesh.setMatrixAt(i, dummy.matrix);
+
+          dummy.position.set(sxR, curY + 0.24, szR);
+          dummy.rotation.set(0.3, faceAngle, -2.5 - idleSway);
+          dummy.updateMatrix();
+          crowdParts.rightArmMesh.setMatrixAt(i, dummy.matrix);
+
+          dummy.scale.set(0.001, 0.001, 0.001);
+          dummy.updateMatrix();
+          crowdParts.flagMesh.setMatrixAt(i, dummy.matrix);
+        }
+      }
+
+      crowdParts.torsoMesh.instanceMatrix.needsUpdate = true;
+      crowdParts.headMesh.instanceMatrix.needsUpdate = true;
+      crowdParts.leftArmMesh.instanceMatrix.needsUpdate = true;
+      crowdParts.rightArmMesh.instanceMatrix.needsUpdate = true;
+      crowdParts.flagMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    // Animate Floating 3D Stadium Cheer Banners
+    for (let i = cheerPopups.length - 1; i >= 0; i--) {
+      const cp = cheerPopups[i];
+      cp.age += dt;
+      cp.mesh.position.y += dt * 1.4;
+      cp.mesh.position.z += forwardStep * 0.35;
+      cp.mesh.material.opacity = Math.max(0, 1 - cp.age / 2.8);
+      if (cp.age >= 2.8) {
+        scene.remove(cp.mesh);
+        cheerPopups.splice(i, 1);
+      }
+    }
+
+    // Update Fireworks
+    for (let i = fireworks.length - 1; i >= 0; i--) {
+      const fw = fireworks[i];
+      fw.age += dt;
+      const posAttr = fw.points.geometry.attributes.position;
+      for (let p = 0; p < fw.velocities.length; p++) {
+        const v = fw.velocities[p];
+        posAttr.array[p * 3] += v.vx * dt;
+        posAttr.array[p * 3 + 1] += v.vy * dt;
+        posAttr.array[p * 3 + 2] += v.vz * dt;
+        v.vy -= 9.8 * dt; // Gravity
+      }
+      posAttr.needsUpdate = true;
+      fw.points.material.opacity = Math.max(0, 1 - fw.age / 1.6);
+      if (fw.age >= 1.6) {
+        scene.remove(fw.points);
+        fireworks.splice(i, 1);
+      }
+    }
+
+    // Dynamic Camera Follow & FOV Warp (Car always prominently framed in center-bottom!)
+    if (camera && carGroup) {
+      const targetFov = 56 + Math.max(0, (STATE.speed - 100) / 260) * 16;
+      camera.fov += (targetFov - camera.fov) * dt * 4;
+      camera.updateProjectionMatrix();
+
+      if (STATE.cameraMode === 0) {
+        // Hero Close Chase Camera (Car fills center-bottom clearly!)
+        camera.position.x += (carGroup.position.x * 0.72 - camera.position.x) * dt * 6;
+        camera.position.y += (3.15 - camera.position.y) * dt * 5;
+        camera.position.z += (10.4 - camera.position.z) * dt * 5;
+        camera.lookAt(carGroup.position.x * 0.55, 1.35, -6);
+      } else if (STATE.cameraMode === 1) {
+        // Wide Stadium Chase Camera
+        camera.position.x += (carGroup.position.x * 0.5 - camera.position.x) * dt * 4;
+        camera.position.y += (5.2 - camera.position.y) * dt * 4;
+        camera.position.z += (13.2 - camera.position.z) * dt * 4;
+        camera.lookAt(carGroup.position.x * 0.3, 1.5, -12);
+      } else {
+        // Hood / Cockpit View
+        camera.position.set(carGroup.position.x, 1.65, 2.2);
+        camera.lookAt(carGroup.position.x, 1.4, -35);
+      }
+    }
+
+    // Animate 3D 8K Sky Hologram Watermark ("بالميثاق نبلغ الآفاق")
+    if (skyHologramGroup && skyHoloRing1 && skyHoloRing2) {
+      skyHologramGroup.position.y = Math.sin(now * 0.0022) * 0.65;
+      skyHologramGroup.rotation.y = Math.sin(now * 0.0012) * 0.08;
+      skyHoloRing1.rotation.z = now * 0.0015;
+      skyHoloRing1.rotation.x = Math.sin(now * 0.001) * 0.45;
+      skyHoloRing2.rotation.z = -now * 0.0012;
+      skyHoloRing2.rotation.y = Math.cos(now * 0.001) * 0.45;
+    }
+
+    renderer.render(scene, camera);
+  }
+
+  // --- HUD & Speedometer Update ---
+  function updateSpeedometerUI(speedVal) {
+    const rounded = Math.round(speedVal);
+    document.getElementById('hud-speed').textContent = rounded;
+
+    // Gear calculation
+    let gear = '1';
+    if (rounded < 10) gear = 'N';
+    else if (rounded < 80) gear = '1';
+    else if (rounded < 130) gear = '2';
+    else if (rounded < 180) gear = '3';
+    else if (rounded < 230) gear = '4';
+    else if (rounded < 280) gear = '5';
+    else gear = '6';
+    document.getElementById('hud-gear').textContent = gear;
+
+    // SVG Arc (max 430 dash at 360 km/h)
+    const pct = Math.min(1, Math.max(0, rounded / 360));
+    const dash = Math.round(pct * 430);
+    const arc = document.getElementById('gauge-arc');
+    if (arc) {
+      arc.style.strokeDasharray = `${dash} 580`;
+    }
+  }
+
+  // --- Start Race Flow ---
+  function startNewRace() {
+    audio.init();
+    const nameInput = document.getElementById('driver-name-input').value.trim();
+    STATE.driverName = nameInput || 'بطل المعارف';
+
+    const modeVal = document.getElementById('race-mode-select').value;
+    let pool = [...window.QUIZ_QUESTIONS];
+
+    if (modeVal === 'short-25') {
+      pool.sort(() => Math.random() - 0.5);
+      pool = pool.slice(0, 10);
+      STATE.timePerQuestion = 25;
+    } else if (modeVal === 'all-15') {
+      STATE.timePerQuestion = 15;
+    } else {
+      STATE.timePerQuestion = 25;
+    }
+
+    STATE.questions = pool;
+    STATE.currentQIndex = 0;
+    STATE.score = 0;
+    STATE.streak = 0;
+    STATE.correctCount = 0;
+    STATE.speed = 60;
+    STATE.targetSpeed = 130;
+    STATE.topSpeed = 130;
+    STATE.distanceProgress = 0;
+    STATE.raceActive = true;
+    STATE.isPaused = false;
+    racePosition = 12;
+    currentStageIndex = -1;
+    finishArchGroup.visible = false;
+
+    const pauseBtn = document.getElementById('btn-pause-toggle');
+    if (pauseBtn) {
+      pauseBtn.textContent = '⏸️';
+      pauseBtn.classList.remove('is-paused');
+    }
+
+    const posEl = document.getElementById('hud-position-badge');
+    if (posEl) posEl.textContent = `🏁 المركز: ${racePosition} / 12`;
+
+    if (carBodyMaterial) {
+      carBodyMaterial.color.set(STATE.carColor);
+    }
+
+    document.getElementById('hud-driver-name').textContent = `السائق: ${STATE.driverName}`;
+    document.getElementById('start-modal').classList.add('hidden');
+    document.getElementById('finish-modal').classList.add('hidden');
+    document.getElementById('hud-layer').classList.remove('hidden');
+
+    // Record student race start in encrypted telemetry
+    if (window.__TELEMETRY_ENGINE__) {
+      window.__TELEMETRY_ENGINE__.updateSession({
+        studentName: STATE.driverName,
+        status: '🏎️ بدأ السباق',
+        carModel: STATE.carModel === 'f1' ? 'Formula 1' : 'GT3 Supercar'
+      });
+    }
+
+    updateHUDStats();
+    renderCurrentQuestion();
+  }
+
+  function updateHUDStats() {
+    const total = STATE.questions.length;
+    const currentNum = Math.min(STATE.currentQIndex + 1, total);
+    document.getElementById('hud-question-counter').textContent = `السؤال: ${currentNum} / ${total}`;
+    document.getElementById('hud-score').textContent = STATE.score.toLocaleString('en-US');
+    document.getElementById('hud-streak').textContent = `🔥 ${STATE.streak}`;
+
+    const pct = Math.min(100, Math.round(STATE.distanceProgress));
+    document.getElementById('hud-distance-text').textContent = `المسافة نحو خط النهاية: ${pct}%`;
+    document.getElementById('track-bar-fill').style.width = `${pct}%`;
+    document.getElementById('track-car-marker').style.right = `${pct}%`;
+  }
+
+  // --- Render Active Question & Start Per-Question Countdown Timer ---
+  function renderCurrentQuestion() {
+    clearInterval(STATE.timerInterval);
+    STATE.questionAnswered = false;
+    STATE.keyboardFocusIndex = 0;
+
+    const q = STATE.questions[STATE.currentQIndex];
+    if (!q) {
+      finishRace();
+      return;
+    }
+
+    // Apply Dynamic Biome Stage & Track Curve for this Question!
+    applyWorldStageBiome(STATE.currentQIndex);
+
+    // Every 5th question is a 2X DOUBLE POINTS BOSS CHALLENGE!
+    const isBossQuestion = (STATE.currentQIndex + 1) % 5 === 0;
+    const cockpitEl = document.getElementById('question-cockpit');
+    if (cockpitEl) {
+      cockpitEl.classList.toggle('boss-question-glow', isBossQuestion);
+    }
+
+    // Show Finish Line Arch on the last 2 questions
+    if (STATE.currentQIndex >= STATE.questions.length - 2) {
+      finishArchGroup.visible = true;
+      finishArchGroup.position.z = -180;
+    }
+
+    document.getElementById('q-code-badge').textContent = isBossQuestion ? `⚡ جولة بونص 2X | ${q.code}` : q.code;
+    document.getElementById('q-outcome-badge').textContent = q.learningOutcome;
+    document.getElementById('q-text').textContent = isBossQuestion
+      ? `🔥 [تحدي النقاط المضاعفة 2X] س${STATE.currentQIndex + 1}: ${q.question}`
+      : `س${STATE.currentQIndex + 1}: ${q.question}`;
+    document.getElementById('q-feedback-panel').classList.add('hidden');
+
+    const grid = document.getElementById('q-options-grid');
+    grid.innerHTML = '';
+
+    q.options.forEach((optText, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'option-btn' + (idx === 0 ? ' keyboard-focus' : '');
+      btn.dataset.index = idx;
+      btn.innerHTML = `
+        <span class="option-key-badge">${idx + 1}</span>
+        <span class="option-label-text">${optText}</span>
+      `;
+      btn.addEventListener('click', () => handleAnswerSelection(idx));
+      grid.appendChild(btn);
+    });
+
+    // Reset Timer
+    STATE.timeLeft = STATE.timePerQuestion;
+    updateTimerUI();
+
+    STATE.timerInterval = setInterval(() => {
+      if (STATE.questionAnswered || !STATE.raceActive || STATE.isPaused) return;
+      STATE.timeLeft -= 1;
+      updateTimerUI();
+      if (STATE.timeLeft <= 0) {
+        clearInterval(STATE.timerInterval);
+        handleAnswerSelection(-1); // Timeout
+      }
+    }, 1000);
+  }
+
+  function togglePauseRace() {
+    if (!STATE.raceActive) return;
+    STATE.isPaused = !STATE.isPaused;
+
+    const pauseBtn = document.getElementById('btn-pause-toggle');
+    const secEl = document.getElementById('q-timer-seconds');
+
+    if (STATE.isPaused) {
+      if (pauseBtn) {
+        pauseBtn.textContent = '▶️';
+        pauseBtn.classList.add('is-paused');
+      }
+      if (secEl) {
+        secEl.textContent = `⏸️ ${STATE.timeLeft}s`;
+      }
+      if (audio.engineGain && audio.ctx) {
+        audio.engineGain.gain.setTargetAtTime(0, audio.ctx.currentTime, 0.05);
+      }
+    } else {
+      if (pauseBtn) {
+        pauseBtn.textContent = '⏸️';
+        pauseBtn.classList.remove('is-paused');
+      }
+      if (secEl) {
+        secEl.textContent = `${STATE.timeLeft}s`;
+      }
+      audio.updateEnginePitch(STATE.speed);
+    }
+  }
+
+  function updateTimerUI() {
+    const secEl = document.getElementById('q-timer-seconds');
+    const fillEl = document.getElementById('q-timer-fill');
+    const container = secEl.parentElement;
+
+    secEl.textContent = `${STATE.timeLeft}s`;
+    const ratio = Math.max(0, (STATE.timeLeft / STATE.timePerQuestion) * 100);
+    fillEl.style.width = `${ratio}%`;
+
+    if (STATE.timeLeft <= 5) {
+      container.classList.add('danger');
+    } else {
+      container.classList.remove('danger');
+    }
+  }
+
+  // --- Handle Answer Selection (Speed Boost + Crowd Celebration or Speed Penalty) ---
+  function handleAnswerSelection(selectedIndex) {
+    if (STATE.questionAnswered) return;
+    STATE.questionAnswered = true;
+    clearInterval(STATE.timerInterval);
+
+    const q = STATE.questions[STATE.currentQIndex];
+    const isCorrect = selectedIndex === q.correct;
+    const buttons = document.querySelectorAll('#q-options-grid .option-btn');
+
+    buttons.forEach((btn, idx) => {
+      btn.disabled = true;
+      if (idx === q.correct) {
+        btn.classList.add('correct');
+      } else if (idx === selectedIndex && !isCorrect) {
+        btn.classList.add('wrong');
+      }
+    });
+
+    const feedbackPanel = document.getElementById('q-feedback-panel');
+    const statusTitle = document.getElementById('feedback-status-title');
+    const speedDelta = document.getElementById('feedback-speed-delta');
+    const explanationEl = document.getElementById('feedback-explanation');
+    const crowdStatus = document.getElementById('hud-crowd-status');
+
+    const totalQuestions = STATE.questions.length;
+    const stepProgress = 100 / totalQuestions;
+
+    if (isCorrect) {
+      // Calculate Score with Time Bonus, Streak Multiplier & 2X Boss Question Bonus!
+      const isBossQuestion = (STATE.currentQIndex + 1) % 5 === 0;
+      const bossMult = isBossQuestion ? 2 : 1;
+      STATE.streak += 1;
+      STATE.correctCount += 1;
+      const timeBonus = STATE.timeLeft * 8;
+      const streakBonus = Math.min(STATE.streak * 35, 250);
+      const earned = (150 + timeBonus + streakBonus) * bossMult;
+      STATE.score += earned;
+
+      // Advance Race Position (Overtake Rivals toward 1st Place!)
+      racePosition = Math.max(1, racePosition - 1);
+      const posEl = document.getElementById('hud-position-badge');
+      if (posEl) {
+        posEl.textContent = racePosition === 1 ? '🥇 المركز: 1 / 12 (المتصدر!)' : `🏁 المركز: ${racePosition} / 12`;
+      }
+
+      // Boost Car Speed & Nitro!
+      STATE.targetSpeed = Math.min(355, STATE.targetSpeed + 32);
+      STATE.nitroTimer = 2.4;
+      STATE.celebrationTimer = 3.5;
+      STATE.distanceProgress = Math.min(100, STATE.distanceProgress + stepProgress);
+
+      // Lane switch excitement
+      const lanes = [-4.5, 0, 4.5];
+      STATE.laneX = lanes[(STATE.currentQIndex + 1) % lanes.length];
+
+      audio.playNitroAndCheer();
+      spawnCelebrationFireworks();
+      spawnStadiumCheerBanners();
+
+      const nitroOverlay = document.getElementById('nitro-overlay');
+      nitroOverlay.classList.add('active');
+      setTimeout(() => nitroOverlay.classList.remove('active'), 1100);
+
+      statusTitle.textContent = `✅ إجابة صحيحة مذهلة! (+${earned} نقطة)`;
+      statusTitle.style.color = '#34d399';
+      speedDelta.textContent = '🚀 تيربو نيترو +32 KM/H';
+      speedDelta.style.background = 'rgba(16, 185, 129, 0.25)';
+      speedDelta.style.color = '#6ee7b7';
+      crowdStatus.textContent = '🎊 الجمهور يهتف ويحتفل بالألعاب النارية!';
+      crowdStatus.style.color = '#fbbf24';
+    } else {
+      // Wrong or Timeout -> Reduce Speed & Drop 1 Race Position
+      STATE.streak = 0;
+      STATE.targetSpeed = Math.max(75, STATE.targetSpeed - 38);
+      STATE.distanceProgress = Math.min(100, STATE.distanceProgress + stepProgress * 0.65);
+      racePosition = Math.min(12, racePosition + 1);
+      const posEl = document.getElementById('hud-position-badge');
+      if (posEl) posEl.textContent = `🏁 المركز: ${racePosition} / 12`;
+
+      audio.playBrakeBuzz();
+
+      const dmgOverlay = document.getElementById('damage-overlay');
+      dmgOverlay.classList.add('active');
+      setTimeout(() => dmgOverlay.classList.remove('active'), 800);
+
+      statusTitle.textContent = selectedIndex === -1
+        ? '⏰ انتهى وقت السؤال! انخفضت سرعة السيارة'
+        : '❌ إجابة غير صحيحة! تراجعت سرعة السيارة';
+      statusTitle.style.color = '#fb7185';
+      speedDelta.textContent = '⚠️ تباطؤ -38 KM/H';
+      speedDelta.style.background = 'rgba(239, 68, 68, 0.25)';
+      speedDelta.style.color = '#fca5a5';
+      crowdStatus.textContent = '😮 الجمهور يترقب تعويضك في السؤال القادم!';
+      crowdStatus.style.color = '#94a3b8';
+    }
+
+    explanationEl.textContent = `💡 التفسير العلمي: ${q.explanation}`;
+    feedbackPanel.classList.remove('hidden');
+    updateHUDStats();
+  }
+
+  function advanceToNextQuestion() {
+    if (!STATE.questionAnswered) return;
+    STATE.currentQIndex += 1;
+    if (STATE.currentQIndex >= STATE.questions.length) {
+      finishRace();
+    } else {
+      renderCurrentQuestion();
+      updateHUDStats();
+    }
+  }
+
+  // --- Finish Line Celebration & Prize Calculation ---
+  function finishRace() {
+    clearInterval(STATE.timerInterval);
+    STATE.raceActive = false;
+    STATE.distanceProgress = 100;
+    STATE.celebrationTimer = 8.0;
+    finishArchGroup.visible = true;
+    finishArchGroup.position.z = -14;
+
+    updateHUDStats();
+    spawnCelebrationFireworks();
+    audio.playNitroAndCheer();
+
+    const total = STATE.questions.length;
+    const accuracyPct = Math.round((STATE.correctCount / total) * 100);
+
+    let prizeTitle = 'كأس البطولة البرونزي 🥉';
+    let trophyEmoji = '🥉';
+    let rankHeading = 'أنهيت السباق بنجاح!';
+
+    if (accuracyPct >= 90) {
+      prizeTitle = 'كأس الفورمولا الماسي للعلوم 💎🏆';
+      trophyEmoji = '🏆';
+      rankHeading = 'أسطورة مضمار العلوم! فوز ساحق بالمركز الأول!';
+    } else if (accuracyPct >= 75) {
+      prizeTitle = 'الكأس الذهبي لسباق العلوم 🥇';
+      trophyEmoji = '🥇';
+      rankHeading = 'أداء بطولي رائع على المضمار!';
+    } else if (accuracyPct >= 55) {
+      prizeTitle = 'الكأس الفضي للسرعة والمعرفة 🥈';
+      trophyEmoji = '🥈';
+      rankHeading = 'سباق جيد جداً! يمكنك تحطيم رقمك القياسي!';
+    }
+
+    document.getElementById('finish-trophy-icon').textContent = trophyEmoji;
+    document.getElementById('finish-rank-title').textContent = rankHeading;
+    document.getElementById('finish-prize-subtitle').textContent = `الجائزة المستحقة: ${prizeTitle}`;
+    document.getElementById('finish-driver-name').textContent = STATE.driverName;
+    document.getElementById('finish-score').textContent = STATE.score.toLocaleString('en-US');
+    document.getElementById('finish-accuracy').textContent = `${STATE.correctCount} / ${total} (${accuracyPct}%)`;
+    document.getElementById('finish-top-speed').textContent = `${STATE.topSpeed} KM/H`;
+
+    saveScoreToLeaderboard({
+      name: STATE.driverName,
+      score: STATE.score,
+      accuracy: `${accuracyPct}%`,
+      topSpeed: `${STATE.topSpeed} KM/H`,
+      prize: prizeTitle
+    });
+
+    // Record final race completion in encrypted telemetry
+    if (window.__TELEMETRY_ENGINE__) {
+      window.__TELEMETRY_ENGINE__.updateSession({
+        studentName: STATE.driverName,
+        status: '🏁 أنهى السباق',
+        score: STATE.score,
+        accuracy: `${STATE.correctCount}/${total} (${accuracyPct}%)`,
+        topSpeed: `${STATE.topSpeed} KM/H`
+      });
+    }
+
+    document.getElementById('hud-layer').classList.add('hidden');
+    document.getElementById('finish-modal').classList.remove('hidden');
+  }
+
+  // --- Leaderboard Management (LocalStorage with Default High Scores) ---
+  const LB_STORAGE_KEY = 'ALMAAREF_SCIENCE_RACE_LB_V1';
+
+  function getLeaderboardData() {
+    try {
+      const raw = localStorage.getItem(LB_STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {
+      console.warn(e);
+    }
+    return [
+      { name: 'راشد الكتبي - عاشر 1', score: 6850, accuracy: '96%', topSpeed: '355 KM/H', prize: 'كأس الفورمولا الماسي 💎' },
+      { name: 'زايد المنصوري - عاشر 2', score: 5920, accuracy: '87%', topSpeed: '330 KM/H', prize: 'الكأس الذهبي 🥇' },
+      { name: 'حمدان الشامسي - عاشر 1', score: 4890, accuracy: '78%', topSpeed: '295 KM/H', prize: 'الكأس الذهبي 🥇' }
+    ];
+  }
+
+  function saveScoreToLeaderboard(entry) {
+    const list = getLeaderboardData();
+    list.push(entry);
+    list.sort((a, b) => b.score - a.score);
+    const trimmed = list.slice(0, 15);
+    try {
+      localStorage.setItem(LB_STORAGE_KEY, JSON.stringify(trimmed));
+    } catch (e) {
+      console.warn(e);
+    }
+  }
+
+  function renderLeaderboardModal() {
+    const tbody = document.getElementById('leaderboard-tbody');
+    const list = getLeaderboardData();
+    tbody.innerHTML = '';
+
+    list.forEach((item, idx) => {
+      const rankBadge = idx === 0 ? '🥇 1' : idx === 1 ? '🥈 2' : idx === 2 ? '🥉 3' : `${idx + 1}`;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${rankBadge}</td>
+        <td>${item.name}</td>
+        <td>${Number(item.score).toLocaleString('en-US')}</td>
+        <td>${item.accuracy}</td>
+        <td>${item.topSpeed}</td>
+        <td>${item.prize}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('leaderboard-modal').classList.remove('hidden');
+  }
+
+  // --- Full Laptop Keyboard Controls ---
+  function setupKeyboardControls() {
+    window.addEventListener('keydown', (e) => {
+      // Ignore shortcuts if typing name in input field
+      if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          startNewRace();
+        }
+        return;
+      }
+
+      const key = e.key;
+
+      // Camera view toggle (C)
+      if (key === 'c' || key === 'C' || key === 'ؤ') {
+        STATE.cameraMode = (STATE.cameraMode + 1) % 3;
+        return;
+      }
+
+      // HUD visibility toggle (H) so player can view full unobstructed track anytime
+      if (key === 'h' || key === 'H' || key === 'أ') {
+        if (key === 'h' || key === 'H') {
+          document.getElementById('hud-layer').classList.toggle('hud-minimized');
+          return;
+        }
+      }
+
+      // If start modal is open, Enter starts race
+      if (!document.getElementById('start-modal').classList.contains('hidden')) {
+        if (key === 'Enter') {
+          e.preventDefault();
+          startNewRace();
+        }
+        return;
+      }
+
+      if (!STATE.raceActive) return;
+
+      // Pause / Resume toggle with P or Escape
+      if (key === 'p' || key === 'P' || key === 'ح' || key === 'Escape') {
+        e.preventDefault();
+        togglePauseRace();
+        return;
+      }
+
+      // If currently paused, Enter or Space resumes the race
+      if (STATE.isPaused) {
+        if (key === 'Enter' || key === ' ') {
+          e.preventDefault();
+          togglePauseRace();
+        }
+        return;
+      }
+
+      // Steering Car Left/Right across the 3 lanes
+      if (key === 'ArrowLeft' || key === 'a' || key === 'A' || key === 'ش') {
+        STATE.laneX = Math.max(-4.5, STATE.laneX - 4.5);
+      } else if (key === 'ArrowRight' || key === 'd' || key === 'D' || key === 'ي') {
+        STATE.laneX = Math.min(4.5, STATE.laneX + 4.5);
+      }
+
+      // If question already answered, Space or Enter goes to next question
+      if (STATE.questionAnswered) {
+        if (key === 'Enter' || key === ' ') {
+          e.preventDefault();
+          advanceToNextQuestion();
+        }
+        return;
+      }
+
+      // Direct Number Keys (1, 2, 3, 4) or Arabic/English Option Letters
+      if (key === '1' || key === 'أ' || key === 'a') {
+        handleAnswerSelection(0);
+      } else if (key === '2' || key === 'ب' || key === 'b') {
+        handleAnswerSelection(1);
+      } else if (key === '3' || key === 'ج' || key === 'c') {
+        handleAnswerSelection(2);
+      } else if (key === '4' || key === 'د' || key === 'd') {
+        handleAnswerSelection(3);
+      } else if (key === 'ArrowUp' || key === 'w' || key === 'W') {
+        e.preventDefault();
+        updateKeyboardOptionFocus((STATE.keyboardFocusIndex + 3) % 4);
+      } else if (key === 'ArrowDown' || key === 's' || key === 'S') {
+        e.preventDefault();
+        updateKeyboardOptionFocus((STATE.keyboardFocusIndex + 1) % 4);
+      } else if (key === 'Enter' || key === ' ') {
+        e.preventDefault();
+        handleAnswerSelection(STATE.keyboardFocusIndex);
+      }
+    });
+  }
+
+  function updateKeyboardOptionFocus(newIndex) {
+    STATE.keyboardFocusIndex = newIndex;
+    const buttons = document.querySelectorAll('#q-options-grid .option-btn');
+    buttons.forEach((btn, idx) => {
+      btn.classList.toggle('keyboard-focus', idx === newIndex);
+    });
+  }
+
+  // --- Wire UI Buttons ---
+  function initUIEvents() {
+    document.getElementById('btn-start-race').addEventListener('click', startNewRace);
+    document.getElementById('btn-next-question').addEventListener('click', advanceToNextQuestion);
+    document.getElementById('btn-play-again').addEventListener('click', () => {
+      document.getElementById('finish-modal').classList.add('hidden');
+      document.getElementById('start-modal').classList.remove('hidden');
+    });
+
+    // Car Color Swatches
+    document.querySelectorAll('#car-color-swatches .color-swatch').forEach((swatch) => {
+      swatch.addEventListener('click', () => {
+        document.querySelectorAll('#car-color-swatches .color-swatch').forEach((s) => s.classList.remove('active'));
+        swatch.classList.add('active');
+        STATE.carColor = swatch.dataset.color;
+        if (carBodyMaterial) {
+          carBodyMaterial.color.set(STATE.carColor);
+          carBodyMaterial.emissive.set(STATE.carColor);
+        }
+      });
+    });
+
+    // HUD Toggle Button
+    const hudToggleBtn = document.getElementById('btn-hud-toggle');
+    if (hudToggleBtn) {
+      hudToggleBtn.addEventListener('click', () => {
+        document.getElementById('hud-layer').classList.toggle('hud-minimized');
+      });
+    }
+
+    // Pause / Resume Button (In-place pause without any modal covering the screen)
+    const pauseToggleBtn = document.getElementById('btn-pause-toggle');
+    if (pauseToggleBtn) {
+      pauseToggleBtn.addEventListener('click', togglePauseRace);
+    }
+
+    // Car Model Selector (Formula 1 vs GT3 Supercar)
+    const modelSelect = document.getElementById('car-model-select');
+    if (modelSelect) {
+      modelSelect.addEventListener('change', (e) => {
+        STATE.carModel = e.target.value;
+        buildPlayerSupercar();
+      });
+    }
+
+    // Leaderboard Buttons
+    document.getElementById('btn-leaderboard-open').addEventListener('click', renderLeaderboardModal);
+    document.getElementById('btn-view-leaderboard-start').addEventListener('click', renderLeaderboardModal);
+    document.getElementById('btn-open-leaderboard-finish').addEventListener('click', renderLeaderboardModal);
+    document.getElementById('btn-close-leaderboard').addEventListener('click', () => {
+      document.getElementById('leaderboard-modal').classList.add('hidden');
+    });
+    document.getElementById('btn-clear-leaderboard').addEventListener('click', () => {
+      localStorage.removeItem(LB_STORAGE_KEY);
+      renderLeaderboardModal();
+    });
+
+    // Sound & Camera Toggles
+    document.getElementById('btn-sound-toggle').addEventListener('click', (e) => {
+      const muted = audio.toggleMute();
+      e.currentTarget.textContent = muted ? '🔇' : '🔊';
+    });
+
+    document.getElementById('btn-camera-toggle').addEventListener('click', () => {
+      STATE.cameraMode = (STATE.cameraMode + 1) % 3;
+    });
+  }
+
+  // ==========================================================================
+  // STEALTH DRM & ANTI-TAMPER COPYRIGHT PROTECTION SHIELD (Invisible to User)
+  // Protects ownership of: أ.هشام غنوم | مدرسة المعارف | بالميثاق نبلغ الآفاق
+  // ==========================================================================
+  function initStealthCopyrightProtection() {
+    // Obfuscated canonical tokens (Base64 UTF-8)
+    const _0xAuth = decodeURIComponent(escape(window.atob('2KXYudiv2KfYryDYoS7Zh9i02KfZhSDYutmG2YjZhQ=='))); // إعداد: أ.هشام غنوم
+    const _0xName = decodeURIComponent(escape(window.atob('2YfYtNin2YUg2LrZhtmI2YU='))); // هشام غنوم
+    const _0xMotto = decodeURIComponent(escape(window.atob('2KjYp9mE2YXZitir2KfZgiDZhtio2YTYuSDYp9mE2K/Zgdin2YI='))); // بالميثاق نبلغ الآفاق
+
+    // 1. Non-enumerable frozen ownership seal on window & document
+    try {
+      const seal = Object.freeze({
+        author: 'أ.هشام غنوم (Hecham Ghanoum)',
+        school: 'مدرسة المعارف حلقة ثالثة بنين',
+        principal: 'أ.نوال غريب',
+        motto: 'بالميثاق نبلغ الآفاق',
+        license: 'PROPRIETARY-ALL-RIGHTS-RESERVED-2026',
+        fingerprint: 'HG-8K-DRM-9F4A2C7E'
+      });
+      Object.defineProperty(window, '__ALMAAREF_DRM_SEAL__', {
+        value: seal,
+        writable: false,
+        configurable: false,
+        enumerable: false
+      });
+    } catch (e) {}
+
+    // 2. Self-Healing DOM Integrity Watchdog (Silently restores credit if tampered with)
+    const verifyAndSelfHeal = () => {
+      const authorBadge = document.querySelector('.author-badge');
+      const floatSig = document.querySelector('.floating-signature');
+      const holoMotto = document.querySelector('.holo-main-motto');
+
+      if (!authorBadge || !authorBadge.textContent.includes(_0xName)) {
+        if (authorBadge) {
+          authorBadge.textContent = 'إعداد: أ.هشام غنوم';
+        }
+      }
+      if (authorBadge) {
+        const st = window.getComputedStyle(authorBadge);
+        if (st.display === 'none' || st.visibility === 'hidden' || parseFloat(st.opacity) < 0.2) {
+          authorBadge.style.cssText = 'display:inline-block !important; visibility:visible !important; opacity:1 !important;';
+        }
+      }
+
+      if (floatSig && !floatSig.textContent.includes(_0xName)) {
+        floatSig.innerHTML = '<span class="sig-dot"></span><span>إعداد: أ.هشام غنوم</span>';
+      }
+      if (floatSig) {
+        const fst = window.getComputedStyle(floatSig);
+        if (fst.display === 'none' || fst.visibility === 'hidden' || parseFloat(fst.opacity) < 0.2) {
+          floatSig.style.cssText = 'display:flex !important; visibility:visible !important; opacity:1 !important;';
+        }
+      }
+
+      if (holoMotto && !holoMotto.textContent.includes('بالميثاق')) {
+        holoMotto.textContent = _0xMotto;
+        holoMotto.setAttribute('data-text', _0xMotto);
+      }
+
+      // Keep document title intact
+      if (!document.title.includes(_0xName)) {
+        document.title = 'سباق العلوم السريع 3D | إعداد: أ.هشام غنوم';
+      }
+    };
+
+    // Observe DOM mutations silently
+    const observer = new MutationObserver(() => {
+      verifyAndSelfHeal();
+    });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true
+    });
+    setInterval(verifyAndSelfHeal, 2500);
+
+    // 3. Block unauthorized source extraction shortcuts (Ctrl+U / Ctrl+S / Right-Click Inspect)
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'u' || e.key === 'U' || e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+      }
+    });
+  }
+
+  // ==========================================================================
+  // SECRET ENCRYPTED STUDENT TELEMETRY & CROSS-DEVICE ANALYTICS ENGINE
+  // Captures Device Type, OS, Browser, Screen, Geo-Location/IP & Student Score
+  // ==========================================================================
+  function initSecretEncryptedAnalytics() {
+    const VAULT_STORAGE_KEY = 'AG_HECHAM_ENCRYPTED_TELEMETRY_V2';
+    const WEBHOOK_STORAGE_KEY = 'AG_HECHAM_CLOUD_WEBHOOK_URL';
+    const CIPHER_SALT = 'HECHAM-GHANOUM-ALMAAREF-2026-SECRET-KEY';
+
+    // Symmetric XOR + Base64 UTF-8 Encryption/Decryption so students cannot read raw LocalStorage
+    const encryptPayload = (obj) => {
+      try {
+        const jsonStr = encodeURIComponent(JSON.stringify(obj));
+        let xored = '';
+        for (let i = 0; i < jsonStr.length; i++) {
+          xored += String.fromCharCode(jsonStr.charCodeAt(i) ^ CIPHER_SALT.charCodeAt(i % CIPHER_SALT.length));
+        }
+        return window.btoa(xored);
+      } catch (e) {
+        return '';
+      }
+    };
+
+    const decryptPayload = (cipherText) => {
+      try {
+        if (!cipherText) return [];
+        const raw = window.atob(cipherText);
+        let unxored = '';
+        for (let i = 0; i < raw.length; i++) {
+          unxored += String.fromCharCode(raw.charCodeAt(i) ^ CIPHER_SALT.charCodeAt(i % CIPHER_SALT.length));
+        }
+        return JSON.parse(decodeURIComponent(unxored));
+      } catch (e) {
+        return [];
+      }
+    };
+
+    // Detect Detailed Device Type, Brand/Model, OS & Browser
+    const detectClientDevice = () => {
+      const ua = navigator.userAgent || '';
+      let deviceCategory = '💻 لابتوب / كمبيوتر';
+      if (/iPad|Tablet|PlayBook|Silk/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+        deviceCategory = '📱 تابلت / iPad';
+      } else if (/Mobile|iPhone|Android.*Mobile|Windows Phone/i.test(ua)) {
+        deviceCategory = '📱 هاتف ذكي (موبايل)';
+      }
+
+      let os = 'نظام غير معروف';
+      if (/Windows NT 10|Windows NT 11/i.test(ua)) os = 'Windows 10/11';
+      else if (/Windows/i.test(ua)) os = 'Windows';
+      else if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS / iPadOS';
+      else if (/Mac OS X/i.test(ua)) os = 'macOS';
+      else if (/Android/i.test(ua)) os = 'Android';
+      else if (/Linux/i.test(ua)) os = 'Linux';
+
+      let browser = 'Browser';
+      if (/Edg\//i.test(ua)) browser = 'Microsoft Edge';
+      else if (/OPR\/|Opera/i.test(ua)) browser = 'Opera';
+      else if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) browser = 'Google Chrome';
+      else if (/Firefox\//i.test(ua)) browser = 'Mozilla Firefox';
+      else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browser = 'Apple Safari';
+
+      const screenRes = `${window.screen.width}×${window.screen.height}`;
+      return {
+        deviceCategory,
+        os,
+        deviceLabel: `${deviceCategory} (${os})`,
+        browserLabel: `${browser} [${screenRes}]`
+      };
+    };
+
+    // Detect Geographical Location & Network IP asynchronously
+    const detectGeoLocation = async () => {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Dubai';
+      let fallbackLoc = `المنطقة الزمنية: ${tz}`;
+      if (tz.includes('Dubai') || tz.includes('Muscat')) {
+        fallbackLoc = '🇦🇪 الإمارات العربية المتحدة (UAE)';
+      }
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const res = await fetch('https://get.geojs.io/v1/ip/geo.json', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          const country = data.country || 'UAE';
+          const city = data.city || data.region || '';
+          const ip = data.ip || '';
+          return `${country}${city ? ' - ' + city : ''} (${ip})`;
+        }
+      } catch (e) {
+        // Fallback to timezone if offline or sandboxed
+      }
+      return fallbackLoc;
+    };
+
+    const loadSessions = () => {
+      const cipher = localStorage.getItem(VAULT_STORAGE_KEY);
+      return decryptPayload(cipher);
+    };
+
+    const saveSessions = (list) => {
+      const trimmed = list.slice(0, 250);
+      localStorage.setItem(VAULT_STORAGE_KEY, encryptPayload(trimmed));
+    };
+
+    // Cloud Global Hit Counter & Optional Custom Webhook Sync
+    let globalVisitCount = 0;
+    const syncGlobalCloudCounter = async (isNewVisit, sessionRecord) => {
+      // 1. Public cross-device hit counter API (CounterAPI / CountAPI compatible)
+      try {
+        const endpoint = isNewVisit
+          ? 'https://api.counterapi.dev/v1/almaaref-hecham-ghanoum/science-racer-3d/up'
+          : 'https://api.counterapi.dev/v1/almaaref-hecham-ghanoum/science-racer-3d/';
+        const res = await fetch(endpoint);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && typeof data.count === 'number') {
+            globalVisitCount = data.count;
+          }
+        }
+      } catch (e) {
+        // Offline fallback uses local length
+      }
+
+      // 2. If Teacher configured a custom Google Sheet / Webhook URL, push full student telemetry across devices
+      const webhookUrl = localStorage.getItem(WEBHOOK_STORAGE_KEY);
+      if (webhookUrl && sessionRecord) {
+        try {
+          fetch(webhookUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sessionRecord)
+          });
+        } catch (e) {}
+      }
+    };
+
+    // Create Current Student Session on Page Entry
+    const sessionId = 'SES-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const devInfo = detectClientDevice();
+    const nowFormatted = new Date().toLocaleString('ar-AE', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+
+    const currentSession = {
+      id: sessionId,
+      timestamp: nowFormatted,
+      studentName: 'زائر (في الصفحة الرئيسية)',
+      status: '🟢 دخل الموقع',
+      deviceCategory: devInfo.deviceCategory,
+      deviceLabel: devInfo.deviceLabel,
+      browserLabel: devInfo.browserLabel,
+      location: 'جاري تحديد الموقع...',
+      score: 0,
+      accuracy: '-'
+    };
+
+    const sessions = loadSessions();
+    sessions.unshift(currentSession);
+    saveSessions(sessions);
+
+    // Resolve Geo-Location & Cloud Counter asynchronously
+    detectGeoLocation().then((locStr) => {
+      currentSession.location = locStr;
+      const list = loadSessions();
+      const idx = list.findIndex((s) => s.id === sessionId);
+      if (idx !== -1) {
+        list[idx].location = locStr;
+        saveSessions(list);
+      }
+      syncGlobalCloudCounter(true, currentSession);
+    });
+
+    // Expose update helper for Race Start & Race Finish
+    window.__TELEMETRY_ENGINE__ = {
+      updateSession(patch) {
+        const list = loadSessions();
+        const idx = list.findIndex((s) => s.id === sessionId);
+        if (idx !== -1) {
+          Object.assign(list[idx], patch);
+          saveSessions(list);
+          syncGlobalCloudCounter(false, list[idx]);
+        }
+      }
+    };
+
+    // --- Secret UI Rendering & Authentication ---
+    let isUnlocked = false;
+    // Obfuscated PIN check: accepts "2026" or "hecham" or "هشام"
+    const verifySecretPin = (inputVal) => {
+      const clean = (inputVal || '').trim().toLowerCase();
+      const validHashes = [
+        window.atob('MjAyNg=='),     // 2026
+        window.atob('aGVjaGFt'),     // hecham
+        'هشام'
+      ];
+      return validHashes.includes(clean);
+    };
+
+    const renderAnalyticsDashboard = () => {
+      const list = loadSessions();
+      const tbody = document.getElementById('secret-analytics-tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      let laptopCount = 0, mobileCount = 0, tabletCount = 0;
+      const locSet = new Set();
+
+      list.forEach((s, idx) => {
+        if (s.deviceCategory && s.deviceCategory.includes('تابلت')) tabletCount++;
+        else if (s.deviceCategory && s.deviceCategory.includes('هاتف')) mobileCount++;
+        else laptopCount++;
+
+        if (s.location && !s.location.includes('جاري')) {
+          const shortLoc = s.location.split('(')[0].trim();
+          if (shortLoc) locSet.add(shortLoc);
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${idx + 1}</td>
+          <td dir="ltr" style="font-size:0.74rem; color:#cbd5e1;">${s.timestamp}</td>
+          <td style="font-weight:900; color:#fef08a;">${s.studentName}</td>
+          <td>${s.status}</td>
+          <td><span class="badge-device">${s.deviceLabel}</span></td>
+          <td dir="ltr" style="font-size:0.74rem;">${s.browserLabel}</td>
+          <td><span class="badge-loc">${s.location}</span></td>
+          <td style="font-weight:800; color:#34d399;">${s.score ? s.score.toLocaleString('en-US') + ' (' + s.accuracy + ')' : '-'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const totalRecorded = list.length;
+      const displayGlobal = Math.max(globalVisitCount, totalRecorded);
+      document.getElementById('kpi-global-visits').textContent = displayGlobal.toLocaleString('en-US');
+      document.getElementById('kpi-total-students').textContent = totalRecorded.toLocaleString('en-US');
+      document.getElementById('kpi-devices-breakdown').textContent = `💻 ${laptopCount} | 📱 ${mobileCount} | 📟 ${tabletCount}`;
+
+      const topLocs = Array.from(locSet).slice(0, 2).join(' ، ') || '🇦🇪 الإمارات العربية المتحدة';
+      document.getElementById('kpi-locations-breakdown').textContent = topLocs;
+
+      const savedHook = localStorage.getItem(WEBHOOK_STORAGE_KEY) || '';
+      const hookInput = document.getElementById('cloud-webhook-input');
+      if (hookInput) hookInput.value = savedHook;
+    };
+
+    const openSecretModal = () => {
+      const modal = document.getElementById('secret-analytics-modal');
+      const pinGate = document.getElementById('secret-pin-gate');
+      const dashPanel = document.getElementById('secret-dashboard-panel');
+      const pinInput = document.getElementById('secret-pin-input');
+      const errEl = document.getElementById('secret-pin-error');
+
+      modal.classList.remove('hidden');
+      errEl.classList.add('hidden');
+
+      if (isUnlocked) {
+        pinGate.classList.add('hidden');
+        dashPanel.classList.remove('hidden');
+        renderAnalyticsDashboard();
+      } else {
+        pinGate.classList.remove('hidden');
+        dashPanel.classList.add('hidden');
+        pinInput.value = '';
+        setTimeout(() => pinInput.focus(), 80);
+      }
+    };
+
+    const closeSecretModal = () => {
+      document.getElementById('secret-analytics-modal').classList.add('hidden');
+    };
+
+    // Trigger 1: Secret Keyboard Shortcut (Ctrl + Shift + H  or  Alt + Shift + H)
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.altKey) && e.shiftKey && (e.key === 'H' || e.key === 'h' || e.key === 'أ' || e.code === 'KeyH')) {
+        e.preventDefault();
+        openSecretModal();
+      }
+    });
+
+    // Trigger 2: 5 Rapid Clicks on ".author-badge" ("إعداد: أ.هشام غنوم")
+    let badgeClicks = 0;
+    let badgeClickTimer = null;
+    const authorBadge = document.querySelector('.author-badge');
+    if (authorBadge) {
+      authorBadge.style.cursor = 'pointer';
+      authorBadge.addEventListener('click', () => {
+        badgeClicks += 1;
+        clearTimeout(badgeClickTimer);
+        if (badgeClicks >= 5) {
+          badgeClicks = 0;
+          openSecretModal();
+        } else {
+          badgeClickTimer = setTimeout(() => { badgeClicks = 0; }, 1600);
+        }
+      });
+    }
+
+    // Unlock Button & Enter Key inside PIN input
+    const unlockHandler = () => {
+      const pinVal = document.getElementById('secret-pin-input').value;
+      if (verifySecretPin(pinVal)) {
+        isUnlocked = true;
+        document.getElementById('secret-pin-gate').classList.add('hidden');
+        document.getElementById('secret-dashboard-panel').classList.remove('hidden');
+        renderAnalyticsDashboard();
+      } else {
+        document.getElementById('secret-pin-error').classList.remove('hidden');
+      }
+    };
+
+    document.getElementById('btn-secret-unlock').addEventListener('click', unlockHandler);
+    document.getElementById('secret-pin-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        unlockHandler();
+      }
+    });
+
+    document.getElementById('btn-secret-cancel').addEventListener('click', closeSecretModal);
+    document.getElementById('btn-analytics-close').addEventListener('click', closeSecretModal);
+    document.getElementById('btn-analytics-refresh').addEventListener('click', () => {
+      syncGlobalCloudCounter(false, null).then(renderAnalyticsDashboard);
+    });
+
+    // Save Custom Cloud Webhook URL
+    document.getElementById('btn-save-webhook').addEventListener('click', () => {
+      const url = document.getElementById('cloud-webhook-input').value.trim();
+      localStorage.setItem(WEBHOOK_STORAGE_KEY, url);
+      const statusText = document.getElementById('cloud-sync-status-text');
+      statusText.textContent = url ? '✅ تم تفعيل الربط السحابي المباشر بنجاح!' : 'التخزين المشفر نشط (Local + Cloud Relay)';
+    });
+
+    // Export Encrypted Logs to Excel-compatible CSV (UTF-8 with BOM for Arabic support)
+    document.getElementById('btn-analytics-export-csv').addEventListener('click', () => {
+      const list = loadSessions();
+      const headers = ['رقم', 'التاريخ والوقت', 'اسم الطالب', 'الحالة', 'نوع الجهاز والنظام', 'المتصفح والشاشة', 'الموقع الجغرافي والشبكة', 'السكور', 'الدقة'];
+      const rows = list.map((s, idx) => [
+        idx + 1,
+        `"${s.timestamp}"`,
+        `"${s.studentName}"`,
+        `"${s.status}"`,
+        `"${s.deviceLabel}"`,
+        `"${s.browserLabel}"`,
+        `"${s.location}"`,
+        s.score || 0,
+        `"${s.accuracy || '-'}"`
+      ]);
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `إحصائيات_طلاب_سباق_العلوم_أ_هشام_غنوم_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+
+    // Clear Encrypted Logs
+    document.getElementById('btn-analytics-clear').addEventListener('click', () => {
+      localStorage.removeItem(VAULT_STORAGE_KEY);
+      renderAnalyticsDashboard();
+    });
+  }
+
+  // --- Boot Game ---
+  window.addEventListener('DOMContentLoaded', () => {
+    initStealthCopyrightProtection();
+    initSecretEncryptedAnalytics();
+    init3DWorld();
+    initUIEvents();
+    setupKeyboardControls();
+  });
+})();
+
+</script>
 </body>
 </html>
