@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>سباق العلوم السريع 3D | إعداد: أ.هشام غنوم</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <!-- Three.js High-Resolution 3D Engine -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <!-- 3D Viewport Canvas -->
+  <div id="game-canvas-container"></div>
+
+  <!-- Speed Lines / Nitro Overlay Effect -->
+  <div id="nitro-overlay" class="nitro-overlay"></div>
+  <div id="damage-overlay" class="damage-overlay"></div>
+
+  <!-- Top Official School Banner -->
+  <header class="top-school-bar">
+    <div class="school-right">
+      <span class="badge-icon">🏎️</span>
+      <span class="school-title">مدرسة المعارف حلقة ثالثة بنين</span>
+      <span class="divider">|</span>
+      <span class="subject-title">العلوم للصف العاشر عام</span>
+    </div>
+    <div class="school-center">
+      <div class="author-badge">إعداد: أ.هشام غنوم</div>
+    </div>
+    <div class="school-left">
+      <span class="principal-title">مديرة المدرسة: أ.نوال غريب</span>
+      <button id="btn-pause-toggle" class="icon-btn pause-top-btn" title="إيقاف مؤقت / استئناف (P أو Esc)">⏸️</button>
+      <button id="btn-hud-toggle" class="icon-btn" title="إخفاء/إظهار لوحة السؤال (H)">👁️</button>
+      <button id="btn-sound-toggle" class="icon-btn" title="كتم/تشغيل الصوت">🔊</button>
+      <button id="btn-camera-toggle" class="icon-btn" title="تغيير زاوية الكاميرا (C)">🎥</button>
+      <button id="btn-leaderboard-open" class="icon-btn" title="لوحة الصدارة (L)">🏆</button>
+    </div>
+  </header>
+
+  <!-- Racing HUD Overlay (Split & Transparent so Track and Car are 100% Visible) -->
+  <div id="hud-layer" class="hud-layer hidden">
+
+    <!-- TOP HOLOGRAM QUESTION BANNER (Leaves Center & Bottom Track 100% Clear) -->
+    <div id="question-cockpit" class="top-question-hud">
+      <!-- Slim Progress Bar inside top HUD -->
+      <div class="top-hud-meta-row">
+        <div class="meta-right">
+          <span id="hud-stage-badge" class="stage-pill">🌙 المرحلة 1: حلبة الاستاد الليلي</span>
+          <span id="hud-position-badge" class="position-pill">🏁 المركز: 12 / 12</span>
+          <span id="hud-question-counter" class="hud-q-counter">السؤال 1 / 23</span>
+          <span id="q-code-badge" class="q-code-badge">Q1</span>
+          <span id="q-outcome-badge" class="q-outcome-badge">ناتج التعلم</span>
+        </div>
+
+        <div class="track-mini-progress">
+          <span id="hud-distance-text" class="hud-distance">0%</span>
+          <div class="track-bar-outer">
+            <div id="track-bar-fill" class="track-bar-fill"></div>
+            <div id="track-car-marker" class="track-car-marker">🏎️</div>
+            <div class="track-finish-flag">🏁</div>
+          </div>
+        </div>
+
+        <div class="timer-container">
+          <span class="timer-icon">⏱️</span>
+          <span id="q-timer-seconds" class="timer-seconds">25s</span>
+        </div>
+      </div>
+
+      <div class="timer-progress-bar">
+        <div id="q-timer-fill" class="timer-progress-fill"></div>
+      </div>
+
+      <!-- Compact Question Heading -->
+      <h2 id="q-text" class="question-heading">جاري تحميل السؤال...</h2>
+
+      <!-- Compact Feedback & Explanation Toast -->
+      <div id="q-feedback-panel" class="feedback-panel hidden">
+        <div class="feedback-content-row">
+          <span id="feedback-status-title" class="feedback-status-title"></span>
+          <span id="feedback-speed-delta" class="feedback-speed-delta"></span>
+          <p id="feedback-explanation" class="feedback-explanation"></p>
+          <button id="btn-next-question" class="btn-next-compact">
+            السؤال التالي (Space / Enter) 🚀
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDE WING OPTIONS (2 on Right, 2 on Left — Center Track & Car Completely Unobstructed!) -->
+    <div id="q-options-grid" class="side-wings-options">
+      <!-- Populated dynamically with 4 glass cards positioned on left & right sides -->
+    </div>
+
+    <!-- Bottom Right Compact Stats & Controls Bar -->
+    <div class="bottom-right-telemetry">
+      <div class="telemetry-stats-row">
+        <div class="stat-pill">
+          <span id="hud-driver-name" class="hud-driver-tag">👨‍🎓 بطل العلوم</span>
+        </div>
+        <div class="stat-pill gold-pill">
+          <span class="s-lbl">النقاط</span>
+          <strong id="hud-score" class="s-val">0</strong>
+        </div>
+        <div class="stat-pill cyan-pill">
+          <span class="s-lbl">التيربو</span>
+          <strong id="hud-streak" class="s-val">🔥 0</strong>
+        </div>
+        <div class="stat-pill crowd-pill">
+          <span id="hud-crowd-status" class="crowd-status-text">🎉 الجمهور يترقب!</span>
+        </div>
+      </div>
+      <div class="laptop-keys-strip">
+        <span><kbd>◀</kbd><kbd>▶</kbd> حركة السيارة</span>
+        <span><kbd>1</kbd>-<kbd>4</kbd> إجابة فورية</span>
+        <span><kbd>P</kbd> إيقاف مؤقت</span>
+        <span><kbd>C</kbd> الكاميرا</span>
+        <span><kbd>H</kbd> إخفاء السؤال</span>
+      </div>
+    </div>
+
+    <!-- Bottom Left Compact Realistic Speedometer -->
+    <div class="speedometer-widget">
+      <svg viewBox="0 0 220 220" class="gauge-svg">
+        <defs>
+          <linearGradient id="speedGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#00f2fe" />
+            <stop offset="50%" stop-color="#f59e0b" />
+            <stop offset="100%" stop-color="#ef4444" />
+          </linearGradient>
+        </defs>
+        <circle cx="110" cy="110" r="92" class="gauge-bg-ring" />
+        <circle id="gauge-arc" cx="110" cy="110" r="92" class="gauge-active-ring" stroke="url(#speedGrad)" />
+      </svg>
+      <div class="gauge-center">
+        <div id="hud-gear" class="gear-indicator">3</div>
+        <div id="hud-speed" class="speed-number">130</div>
+        <div class="speed-unit">KM/H</div>
+        <div id="hud-nitro-tag" class="nitro-ready-tag">NITRO READY</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Start Screen Modal -->
+  <div id="start-modal" class="modal-backdrop">
+    <div class="modal-card start-card">
+      <div class="ribbon-credit">إعداد: أ.هشام غنوم</div>
+      <div class="school-sub-header">
+        مدرسة المعارف حلقة ثالثة بنين • العلوم للصف العاشر عام • مديرة المدرسة: أ.نوال غريب
+      </div>
+      <h1 class="main-game-title">
+        <span class="title-3d">بطولة سباق العلوم</span>
+        <span class="title-sub">GRAND PRIX 3D - رؤية بانورامية كاملة للمضمار والسيارة</span>
+      </h1>
+
+      <p class="game-intro-desc">
+        شاهد سيارتك الرياضية ثلاثية الأبعاد على المضمار وسط المدرجات والجماهير!
+        تظهر الأسئلة في شاشة هولوجرام علوية شفافة والخيارات على الجانبين حتى تبقى <strong class="text-green">السيارة والمضمار أمامك مكشوفة بالكامل</strong>.
+      </p>
+
+      <div class="driver-form">
+        <div class="input-group">
+          <label for="driver-name-input">👨‍🎓 اسم السائق (الطالب):</label>
+          <input type="text" id="driver-name-input" placeholder="اكتب اسمك هنا لتسجيله في لوحة الصدارة..." maxlength="28" value="بطل العلوم" />
+        </div>
+        <div class="input-group">
+          <label>🎨 لون سيارة السباق (تظهر مباشرة خلف النافذة):</label>
+          <div class="color-swatches" id="car-color-swatches">
+            <button type="button" class="color-swatch active" data-color="#ff1e42" style="background:#ff1e42;" title="أحمر فيراري لامع"></button>
+            <button type="button" class="color-swatch" data-color="#00d2ff" style="background:#00d2ff;" title="أزرق نيترو"></button>
+            <button type="button" class="color-swatch" data-color="#fbbf24" style="background:#fbbf24;" title="ذهبي مكلارين"></button>
+            <button type="button" class="color-swatch" data-color="#10b981" style="background:#10b981;" title="أخضر أستون"></button>
+            <button type="button" class="color-swatch" data-color="#a855f7" style="background:#a855f7;" title="بنفسجي ملكي"></button>
+          </div>
+        </div>
+        <div class="input-group">
+          <label for="car-model-select">🏎️ طراز سيارة السباق الحقيقية:</label>
+          <select id="car-model-select" class="select-input">
+            <option value="f1" selected>فورمولا 1 الاحترافية (Formula 1 Grand Prix - Halo)</option>
+            <option value="gt3">سوبر كار الرياضية (GT3 Carbon Supercar)</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label for="race-mode-select">⏱️ نظام المؤقت وعدد الأسئلة:</label>
+          <select id="race-mode-select" class="select-input">
+            <option value="all-25" selected>البطولة الكاملة (23 سؤالاً - 25 ثانية لكل سؤال)</option>
+            <option value="all-15">تحدي السرعة القصوى (23 سؤالاً - 15 ثانية لكل سؤال)</option>
+            <option value="short-25">سباق سريع (10 أسئلة عشوائية - 25 ثانية لكل سؤال)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="controls-preview-box">
+        <div class="cp-item"><span class="cp-keys">1 - 4 أو أ ب ج د</span><span>اختيار الإجابة فوراً</span></div>
+        <div class="cp-item"><span class="cp-keys">الأسهم ◀ ▶ أو A / D</span><span>تحريك السيارة يميناً ويساراً</span></div>
+        <div class="cp-item"><span class="cp-keys">زر C و زر H</span><span>تغيير الكاميرا / إخفاء السؤال</span></div>
+      </div>
+
+      <div class="modal-actions-row">
+        <button id="btn-start-race" class="btn-start-huge">
+          🏁 ابدأ السباق الآن (Enter)
+        </button>
+        <button id="btn-view-leaderboard-start" class="btn-secondary-outline">
+          🏆 لوحة الصدارة
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Finish Line & Trophy Celebration Modal -->
+  <div id="finish-modal" class="modal-backdrop hidden">
+    <div class="modal-card finish-card">
+      <div class="ribbon-credit">إعداد: أ.هشام غنوم</div>
+      <div id="finish-trophy-icon" class="trophy-giant">🏆</div>
+      <h2 id="finish-rank-title" class="finish-title">وصلت إلى خط النهاية!</h2>
+      <p id="finish-prize-subtitle" class="finish-subtitle">كأس البطولة الماسي</p>
+
+      <div class="finish-stats-grid">
+        <div class="f-stat-card">
+          <span class="f-label">السائق</span>
+          <strong id="finish-driver-name" class="f-val">-</strong>
+        </div>
+        <div class="f-stat-card">
+          <span class="f-label">الرصيد النهائي (SCORE)</span>
+          <strong id="finish-score" class="f-val gold-text">0</strong>
+        </div>
+        <div class="f-stat-card">
+          <span class="f-label">الإجابات الصحيحة</span>
+          <strong id="finish-accuracy" class="f-val green-text">0 / 23</strong>
+        </div>
+        <div class="f-stat-card">
+          <span class="f-label">السرعة القصوى المسجلة</span>
+          <strong id="finish-top-speed" class="f-val cyan-text">0 KM/H</strong>
+        </div>
+      </div>
+
+      <div class="modal-actions-row">
+        <button id="btn-play-again" class="btn-start-huge">🔄 سباق جديد</button>
+        <button id="btn-open-leaderboard-finish" class="btn-secondary-outline">🏆 عرض لوحة الصدارة</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard Modal -->
+  <div id="leaderboard-modal" class="modal-backdrop hidden">
+    <div class="modal-card leaderboard-card">
+      <div class="leaderboard-header">
+        <h2>🏆 لوحة صدارة أبطال العلوم (Leaderboard)</h2>
+        <p>مدرسة المعارف حلقة ثالثة بنين — إعداد: أ.هشام غنوم</p>
+      </div>
+      <div class="table-wrapper">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th>المركز</th>
+              <th>اسم الطالب (السائق)</th>
+              <th>السكور</th>
+              <th>الدقة</th>
+              <th>السرعة القصوى</th>
+              <th>الجائزة</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-tbody"></tbody>
+        </table>
+      </div>
+      <div class="modal-actions-row">
+        <button id="btn-close-leaderboard" class="btn-primary-glow">إغلاق والعودة</button>
+        <button id="btn-clear-leaderboard" class="btn-danger-ghost">مسح السجل المحلي</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Persistent Floating Signature Watermark -->
+  <div class="floating-signature" data-drm-lock="hecham-ghanoum-core">
+    <span class="sig-dot"></span>
+    <span>إعداد: أ.هشام غنوم</span>
+  </div>
+
+  <!-- 8K 3D Hologram Watermark: "بالميثاق نبلغ الآفاق" -->
+  <div class="hologram-8k-watermark" aria-hidden="true" data-drm-motto="bilmithaq-nablugh-alafaq">
+    <div class="holo-rings-3d">
+      <span class="holo-ring r1"></span>
+      <span class="holo-ring r2"></span>
+    </div>
+    <div class="holo-prism-body">
+      <span class="holo-scanline"></span>
+      <span class="holo-crown-icon">💠</span>
+      <div class="holo-text-stack">
+        <span class="holo-main-motto" data-text="بالميثاق نبلغ الآفاق">بالميثاق نبلغ الآفاق</span>
+        <span class="holo-sub-tag">HOLOGRAM 8K • مدرسة المعارف</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden Zero-Footprint Copyright & DRM Cryptographic Vault (Invisible to Users) -->
+  <template id="ag-stealth-drm-vault" style="display:none !important;">
+    {"owner":"أ.هشام غنوم","school":"مدرسة المعارف حلقة ثالثة بنين","principal":"أ.نوال غريب","motto":"بالميثاق نبلغ الآفاق","signatureHash":"HG-ALMAAREF-2026-8K-DRM-VERIFIED"}
+  </template>
+
+  <!-- ========================================================================
+       SECRET ENCRYPTED TEACHER ANALYTICS & TELEMETRY VAULT (INVISIBLE TO STUDENTS)
+       Triggered ONLY by: Ctrl+Shift+H  OR  5 Rapid Clicks on "إعداد: أ.هشام غنوم"
+       ======================================================================== -->
+  <div id="secret-analytics-modal" class="modal-backdrop hidden" style="z-index: 9999;">
+    <!-- Step 1: Encrypted PIN Gate -->
+    <div id="secret-pin-gate" class="modal-card secret-auth-card">
+      <div class="ribbon-credit">🔒 بوابة التشفير السرية — أ.هشام غنوم</div>
+      <h2 class="finish-title" style="font-size:1.45rem; margin-bottom:8px;">لوحة الإحصاء والتتبع المشفرة</h2>
+      <p class="game-intro-desc" style="font-size:0.84rem;">
+        هذه اللوحة سرية ومشفرة ومخصصة حصرياً للأستاذ <strong>هشام غنوم</strong> لعرض إحصائيات الطلاب، أنواع أجهزتهم، مواقعهم الجغرافية، ونتائجهم.
+      </p>
+      <div class="secret-pin-box">
+        <input type="password" id="secret-pin-input" placeholder="أدخل رمز التشفير السري..." maxlength="20" autocomplete="off" />
+        <button id="btn-secret-unlock" class="btn-start-huge" style="padding:8px 22px; font-size:0.95rem;">🔓 فك التشفير والدخول</button>
+      </div>
+      <p id="secret-pin-error" class="secret-error-msg hidden">❌ رمز المرور غير صحيح! محاولة غير مصرح بها.</p>
+      <div style="margin-top:12px;">
+        <button id="btn-secret-cancel" class="btn-danger-ghost">إغلاق البوابة</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Full Unlocked Encrypted Analytics Dashboard -->
+    <div id="secret-dashboard-panel" class="modal-card secret-dashboard-card hidden">
+      <div class="secret-dash-header">
+        <div>
+          <span class="ribbon-credit" style="margin-bottom:4px;">🛡️ غرفة التحكم السرية المشفرة (AES-256 / Base64 Vault)</span>
+          <h2 style="font-size:1.35rem; color:#fff;">📊 إحصائيات دخول الطلاب والأجهزة والمواقع الجغرافية</h2>
+        </div>
+        <div class="secret-header-actions">
+          <button id="btn-analytics-refresh" class="btn-primary-glow" title="تحديث ومزامنة السحابة">🔄 تحديث البيانات</button>
+          <button id="btn-analytics-export-csv" class="btn-secondary-outline" style="padding:6px 14px; font-size:0.84rem;">📥 تصدير Excel (CSV)</button>
+          <button id="btn-analytics-close" class="btn-danger-ghost">✖ إغلاق اللوحة (Esc)</button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="analytics-kpi-grid">
+        <div class="kpi-box">
+          <span class="kpi-label">🌐 إجمالي الزيارات العالمية</span>
+          <strong id="kpi-global-visits" class="kpi-val cyan-text">0</strong>
+          <span class="kpi-sub">من جميع الأجهزة والشبكات</span>
+        </div>
+        <div class="kpi-box">
+          <span class="kpi-label">👨‍🎓 عدد الطلاب المسجلين</span>
+          <strong id="kpi-total-students" class="kpi-val gold-text">0</strong>
+          <span class="kpi-sub">جلسات طلاب موثقة</span>
+        </div>
+        <div class="kpi-box">
+          <span class="kpi-label">💻 توزيع أنواع الأجهزة</span>
+          <strong id="kpi-devices-breakdown" class="kpi-val green-text" style="font-size:0.95rem;">-</strong>
+          <span class="kpi-sub">لابتوب / موبايل / تابلت</span>
+        </div>
+        <div class="kpi-box">
+          <span class="kpi-label">🌍 أبرز المواقع والمدن</span>
+          <strong id="kpi-locations-breakdown" class="kpi-val" style="font-size:0.92rem; color:#e9d5ff;">-</strong>
+          <span class="kpi-sub">حسب النطاق الجغرافي والشبكة</span>
+        </div>
+      </div>
+
+      <!-- Cloud Sync Configuration Bar (Optional Cross-Device Webhook / Global Relay) -->
+      <div class="cloud-sync-bar">
+        <div class="cloud-status-left">
+          <span class="sig-dot"></span>
+          <span id="cloud-sync-status-text">التخزين المشفر نشط (Local + Cloud Relay)</span>
+        </div>
+        <div class="cloud-config-right">
+          <input type="text" id="cloud-webhook-input" placeholder="رابط Google Apps Script / Webhook (اختياري للمزامنة الخاصة)..." />
+          <button id="btn-save-webhook" class="btn-primary-glow" style="padding:4px 12px; font-size:0.78rem;">حفظ الربط السحابي</button>
+        </div>
+      </div>
+
+      <!-- Detailed Student Sessions Table -->
+      <div class="table-wrapper" style="max-height: 310px; margin: 10px 0;">
+        <table class="leaderboard-table analytics-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>الوقت والتاريخ</th>
+              <th>اسم الطالب</th>
+              <th>الحالة</th>
+              <th>نوع الجهاز والنظام</th>
+              <th>المتصفح والشاشة</th>
+              <th>الموقع الجغرافي / الشبكة (IP)</th>
+              <th>السكور والدقة</th>
+            </tr>
+          </thead>
+          <tbody id="secret-analytics-tbody">
+            <!-- Populated dynamically from encrypted telemetry -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="secret-dash-footer">
+        <span style="font-size:0.75rem; color:#94a3b8;">🔑 اختصار الفتح السري: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> أو 5 نقرات على "إعداد: أ.هشام غنوم"</span>
+        <button id="btn-analytics-clear" class="btn-danger-ghost" style="font-size:0.76rem; padding:4px 10px;">🗑️ تصفير السجل المشفر</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="questions.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
